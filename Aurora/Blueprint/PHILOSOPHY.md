@@ -9,3 +9,5 @@
 #realmente que se muestre la musica en tiempo real
 
 #que puedas configurar los bajos y cosas asi
+
+#no queremos una simple barras de musica aleatorias sino que se mueva realmente conforme a la musica
