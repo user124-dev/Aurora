@@ -1,8 +1,11 @@
-cambio de frecuencias por medio de software
-ejecucion solamente en terminal
-ejecucion en toda la parte inferior
-compatible con quickshell y puede que a futuro con otros ecosistemas y entornos
-revelacion de imagen por medio de barras
-se realizara el tamaño de las barras por medio de la nota musical que se este tocando al momento
-imagen pequeña en la parte superior de la barra dentro de esta con el instrumento que se este tocando
-configurtacion al gusto con adaptacion al tema existente
+Ideas y Backlog
+Este documento recoge ideas para Aurora, organizadas por su nivel de madurez y su nivel de complejidad. Una idea que pasa a implementarse debería moverse a DECISIONS.md.
+*En evaluación / relacionadas con decisiones abiertas
+Cambio de frecuencias por medio de software. Relacionado directamente con la decisión abierta de la fuente de datos del espectro en DECISIONS.md (candidato: cava).
+Tamaño de las barras según la nota musical que se esté tocando. Depende de que AuroraState.spectrumLevel se resuelva como arreglo (un valor por barra) — ver decisión pendiente.
+Revelación de imagen por medio de barras. Efecto visual donde una imagen se "revela" a través del movimiento del espectro.
+Imagen pequeña del instrumento que se esté tocando, ubicada en la parte superior de la barra
+Exploratorias / futuro
+Ejecución exclusiva en terminal (modo alternativo sin UI gráfica completa y posiblemente la oficial).
+Ejecución ocupando toda la parte inferior de la pantalla (modo barra completa).
+Compatibilidad futura con otros ecosistemas y entornos más allá de Quickshell (alineado con el principio de "compatibilidad extrema" en PHILOSOPHY.md).
