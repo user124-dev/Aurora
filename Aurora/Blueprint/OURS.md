@@ -1,7 +1,12 @@
-#somos estudiantes no esperes mucho la verdad
+#somos estudiantes 
+tal ves pueda parecer que el proyecto no es profecíonal pero intentamos hacer de esto un proyecto que realmente se pueda usar en cualquier entorno 
 
-#dos tipos que se pusieron mamones en su configuracion
+
+#Sin pagos
+queremos que esto sea un proyecto de software libre que cualquier persona pueda usar a su conveniencia y como lo necesite
 
-#no somos muy profecionales
+#Solo dos personas 
+este proyecto inicio con dos personas pero esperamos que realmente mucha gente lo apoye con su contribucion y/o ayudar a programar 
 
-#NO VAMOS A PONER NSFW (broma hagan lo que quieran)
+#Si lees esto 
+debes saber que aunque esté proyecto parece repetivito realmente esto inicio como una colección de ideas de varios reproductores de distintos shells pero queremos darle una identidad real a esto
