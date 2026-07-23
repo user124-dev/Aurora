@@ -1,4 +1,4 @@
-# Auror
+# Aurora
 
 
 Un sistema de visualización musical (barras de espectro) con identidad propia, construido como widget nativo para **Quickshell**.
