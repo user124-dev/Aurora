@@ -14,7 +14,16 @@ Aurora/
 ├── Research/     # Notas y referencias de estudio (End-4, ii)
 └── Themes/       # Temas visuales intercambiables
 ```
+## Principios de arquitectura
 
+Aurora sigue cinco principios fundamentales:
+
+1. Single Source of Truth.
+2. Separación entre UI y lógica.
+3. Componentes desacoplados.
+4. Configuración centralizada.
+5. Independencia del host.
+6. 
 ## Principio: Single Source of Truth
 
 Todo el estado en tiempo real vive en **`Core/AuroraState.qml`** (singleton). Ningún componente visual mantiene su propia copia de datos como `playbackState`, `title` o `spectrumLevels` — todos leen directamente de `AuroraState`.
