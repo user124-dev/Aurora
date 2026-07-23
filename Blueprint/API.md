@@ -1,82 +1,55 @@
-# Public API
+# API interna de Aurora
 
-QML has no `private` keyword - anything can be imported from anywhere.
-This document is the actual contract: what a host integrating Aurora
-is meant to depend on, versus what's free to change inside a patch
-release because nothing outside should be touching it.
+Referencia de las propiedades y funciones públicas que los componentes usan para interactuar con el estado y los providers.
 
-Version: `0.1.0-dev`. Nothing here is stable yet - this is what the
-contract will be once it is, written down early on purpose (see
-`Blueprint/PHILOSOPHY.md` once that exists).
+## `Core/AuroraState.qml` (singleton, solo lectura para componentes)
 
-## Supported
+| Propiedad | Tipo | Descripción |
+|---|---|---|
+| `connected` | bool | Si hay un player MPRIS activo |
+| `playerName` | string | Identidad del player activo |
+| `playbackState` | string | `"Playing"` \| `"Paused"` \| `"Stopped"` |
+| `title`, `artist`, `album` | string | Metadata de la pista actual |
+| `coverArt` | url | URL de la portada |
+| `duration`, `position` | int | Timeline en segundos |
+| `progress` | real (readonly) | `position / duration`, calculado automáticamente |
+| `canSeek` | bool | Si el player permite buscar posición |
+| `spectrumLevel` | real | Nivel promedio del espectro actual |
+| `spectrumLevels` | list\<real\> | Niveles por barra (alimentado por `AuroraAudioProvider`) |
+| `widgetMode` | int | `AuroraConfig.Compact/Hover/Expanded` |
 
-### `Components/Layout/AuroraPlayer.qml`
+## `Core/AuroraConfig.qml` (singleton, configuración estática)
 
-The only component a host is expected to instantiate.
+Valores clave: `bars`, `barSpacing`, tamaños por modo (`compactWidth/Height`, `hoverWidth/Height`, `expandedWidth/Height`), duraciones de animación (`fastAnimation`, `normalAnimation`, `slowAnimation`), `positionUpdateInterval`, delays de hover (`hoverDelay`, `hideDelay`).
 
-```qml
-import "ii/modules/ii/mediaControls/Aurora/Components/Layout" as Aurora
+## `Providers/AuroraPlayerProvider.qml`
 
-Aurora.AuroraPlayer {
-    hostWidth: 400   // optional - omit to let Aurora size itself
-    hostHeight: 80   // optional - omit to let Aurora size itself
-}
-```
+| Función | Descripción |
+|---|---|
+| `initialize()` | Sincroniza el estado inicial. Llamar una vez en `Component.onCompleted`. |
+| `syncPlayer()` | Relee el player activo de MPRIS y actualiza `AuroraState`. |
+| `togglePlaying()` | Play/pause del player activo. |
+| `next()` / `previous()` | Cambia de pista. |
+| `seek(fraction)` | `fraction` entre 0.0–1.0; mueve la posición en el timeline. |
 
-### `Core/AuroraConfig.qml`
+Escucha automáticamente `MprisController.onTrackChanged` y `onActivePlayerChanged` para re-sincronizar sin intervención del componente.
 
-Read-only for a host, with one exception:
+## `Providers/AuroraAudioProvider.qml`
 
-```qml
-AuroraConfig.themeMode = AuroraConfig.ThemeSystem  // or ThemeAurora
-```
+| Función | Descripción |
+|---|---|
+| `initialize()` | Log de arranque. El proceso `cava` se activa solo mientras `AuroraState.playbackState === "Playing"`. |
 
-Every other property is `readonly` by design - see `CONVENTIONS.md`.
+Escribe automáticamente en `AuroraState.spectrumLevels` y `AuroraState.spectrumLevel`. No expone funciones para que los componentes las llamen — es unidireccional (provider → estado → UI).
 
-### `Core/AuroraState.qml` - reading
-
-Safe to read for a host that wants to reflect Aurora's state elsewhere
-(a taskbar tooltip, a lock screen widget): `connected`, `playerName`,
-`playbackState`, `title`, `artist`, `album`, `coverArt`, `duration`,
-`position`, `progress`, `canSeek`.
-
-### `Core/AuroraState.qml` - signals
-
-```qml
-AuroraState.trackChanged.connect(function() { ... })
-AuroraState.connectionChanged.connect(function(connected) { ... })
-```
-
-### `Core/AuroraState.qml` - actions
-
-A host may trigger playback from its own UI instead of Aurora's:
+## Convención de uso desde componentes
 
 ```qml
-AuroraState.togglePlaying()
-AuroraState.next()
-AuroraState.previous()
-AuroraState.seek(0.5)  // 0.0 - 1.0
+// Lectura
+text: AuroraState.title || "Untitled"
+
+// Comando (nunca tocar MprisController directamente)
+downAction: () => AuroraPlayerProvider.togglePlaying()
 ```
 
-## Internal - do not depend on these from outside Aurora
-
-- Everything in `Providers/` (`AuroraPlayerProvider`, `AuroraAudioProvider`,
-  `AuroraThemeProvider`) - implementation detail, swappable per host,
-  see `DECISIONS.md`.
-- `Components/AuroraCover.qml`, `AuroraInfo.qml`, `AuroraControls.qml`,
-  `AuroraSpectrum.qml`, `Components/Layout/AuroraBackground.qml` - internal
-  building blocks of `AuroraPlayer`, not supported standalone.
-- `Core/AuroraTheme.qml`, `Core/AuroraAnimations.qml` - tokens consumed
-  by Aurora's own components, not meant to be read from outside.
-- `Themes/Default/Theme.qml` - the data `AuroraThemeProvider` reads,
-  not a contract itself.
-- `Research/` - reference material only, never imported by any real
-  Aurora code path.
-
-## Adding to the public surface
-
-If a host genuinely needs something from the internal list, that's a
-sign `AuroraState`, `AuroraConfig` or `AuroraPlayer` is missing a
-property - add it there, don't reach past it. Keeps this document
-short enough to stay accurate.
+> Nota: este documento cubre la API interna actual (v0.1-dev). Se actualizará conforme se implemente `AuroraThemeProvider` y el resto de la fuente de datos del espectro (ver `DECISIONS.md`).
