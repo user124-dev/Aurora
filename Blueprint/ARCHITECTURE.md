@@ -8,7 +8,7 @@ Este documento describe cómo están organizados los módulos de Aurora y cómo 
 Aurora/
 ├── Assets/       # Recursos estáticos (config de cava, iconos)
 ├── Blueprint/    # Documentación de decisiones, filosofía, ideas
-├── Components/   # Componentes visuales (Spectrum, Controls, Cover, Info)
+├── Components/   # Componentes visuales (AuroraSpectrum, AuroraControls, AuroraCover, AuroraInfo)
 ├── Core/         # Estado global y configuración (AuroraState, AuroraConfig)
 ├── Providers/    # Puentes hacia servicios externos (MPRIS, audio)
 ├── Research/     # Notas y referencias de estudio (End-4, ii)
@@ -23,7 +23,7 @@ Aurora sigue cinco principios fundamentales:
 3. Componentes desacoplados.
 4. Configuración centralizada.
 5. Independencia del host.
-6. Programacion modular
+
 ## Principio: Single Source of Truth
 
 Todo el estado en tiempo real vive en **`Core/AuroraState.qml`** (singleton). Ningún componente visual mantiene su propia copia de datos como `playbackState`, `title` o `spectrumLevels` — todos leen directamente de `AuroraState`.
