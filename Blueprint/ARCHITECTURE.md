@@ -23,7 +23,7 @@ Aurora sigue cinco principios fundamentales:
 3. Componentes desacoplados.
 4. Configuración centralizada.
 5. Independencia del host.
-6. 
+6. Programacion modular
 ## Principio: Single Source of Truth
 
 Todo el estado en tiempo real vive en **`Core/AuroraState.qml`** (singleton). Ningún componente visual mantiene su propia copia de datos como `playbackState`, `title` o `spectrumLevels` — todos leen directamente de `AuroraState`.
