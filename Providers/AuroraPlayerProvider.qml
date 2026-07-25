@@ -50,6 +50,9 @@ QtObject {
         AuroraState.duration = 0
         AuroraState.position = 0
         AuroraState.canSeek = false
+
+        AuroraState.shuffleEnabled = false
+        AuroraState.repeatMode = "None"
     }
 
     function syncPlayer() {
@@ -88,14 +91,23 @@ QtObject {
         AuroraState.position = p?.position ?? 0
         AuroraState.canSeek = p?.canSeek ?? false
 
+        // Shuffle/LoopStatus are optional in the MPRIS spec - not every
+        // player exposes them. Reading a property Quickshell's MprisPlayer
+        // doesn't define just yields undefined here, so this degrades to
+        // "off" instead of failing.
+        AuroraState.shuffleEnabled = p?.shuffle ?? false
+        AuroraState.repeatMode = p?.loopStatus ?? "None"
+
         if (AuroraState.title !== previousTitle || AuroraState.artist !== previousArtist)
             AuroraState.trackChanged()
     }
 
     // ------------------------------------------------------------
     // MARK: Commands
-    // Controls.qml and Info.qml call these instead of reaching
-    // into MprisController themselves.
+    // AuroraState.togglePlaying() / .next() / .previous() / .seek() /
+    // .toggleShuffle() / .cycleRepeat() forward straight to these -
+    // AuroraControls and AuroraInfo call AuroraState, never this
+    // file directly.
     // ------------------------------------------------------------
 
     function togglePlaying() {
@@ -115,6 +127,27 @@ QtObject {
         const p = MprisController.activePlayer
         if (p && p.canSeek && p.length > 0)
             p.position = fraction * p.length
+    }
+
+    // Both of these are no-ops if the active player doesn't expose the
+    // property - checked instead of assumed, since Shuffle/LoopStatus
+    // are optional in MPRIS and not every player implements them.
+    function toggleShuffle() {
+        const p = MprisController.activePlayer
+        if (!p || p.shuffle === undefined)
+            return
+        p.shuffle = !p.shuffle
+        AuroraState.shuffleEnabled = p.shuffle
+    }
+
+    function cycleRepeat() {
+        const p = MprisController.activePlayer
+        if (!p || p.loopStatus === undefined)
+            return
+        const order = ["None", "Playlist", "Track"]
+        const nextMode = order[(order.indexOf(p.loopStatus) + 1) % order.length]
+        p.loopStatus = nextMode
+        AuroraState.repeatMode = nextMode
     }
 
     // ------------------------------------------------------------
