@@ -224,6 +224,20 @@ Esto agrega:
 Ver `PLUGINS.md` para la guía completa y las limitaciones conocidas
 (sin limpieza automática al destruirse un plugin, sin versión de API
 garantizada todavía).
+Fase 4+: límites técnicos confirmados para la ampliación de roadmap (30/07/2026)
+
+Tras acordar la ampliación de roadmap hacia fuentes múltiples avanzadas, ecualizador real y Aurora Doctor (ver ROADMAP.md v0.4/v0.5 y Ideas.md), se verificaron tres límites técnicos externos que enmarcan cómo se pueden implementar - documentados aquí para que nadie los re-investigue o asuma lo contrario más adelante.
+
+MPRIS Playlists es opcional. La interfaz org.mpris.MediaPlayer2.Playlists que expondría una cola/playlist por fuente no es parte del set mínimo del protocolo MPRIS - es opcional, y en la práctica casi ningún reproductor la implementa (navegadores casi nunca, VLC rara vez; mpv expone su cola por su propio socket IPC, no por MPRIS; Spotify tiene soporte parcial). La feature de "cola unificada" (ROADMAP.md v0.4) se diseña asumiendo que la mayoría de fuentes van a caer en el mismo fallback "No disponible" que ya usa el panel de playlist actual - no una cola universal garantizada para las 5 fuentes de referencia.
+
+MPRIS PlaybackStatus solo define tres valores. Playing, Paused y Stopped son los únicos estados oficiales del protocolo. No existe una forma estándar de que un reproductor comunique "buffering", "loading" o "error" a través de MPRIS. AuroraState.playbackState (ver AuroraState.qml) seguirá reflejando solo estos tres valores reales, más un cuarto estado sintético - "Offline" - derivado de que una fuente desaparezca de AuroraState.players, que sí es algo que la arquitectura actual puede detectar por sí misma. Prometer Buffering/Loading/Error como estados reales repetiría el error ya corregido con el panel de bitrate/códec (Fase 3): datos que MPRIS no garantiza.
+
+EasyEffects no tiene un D-Bus documentado para control en vivo. Los propios mantenedores del proyecto confirman que todos los parámetros se manejan a través de GSettings - mover un control en su ventana simplemente cambia una clave de gsettings, que se propaga al motor de audio. Sí existe una interfaz de línea de comandos estable para cargar un preset completo por nombre (easyeffects -l <preset>) y para correr como servicio en segundo plano. Esto define la división en dos niveles para AuroraEqualizerProvider (ver ROADMAP.md v0.5):
+
+Nivel A (v0.5, comprometido): control por presets completos vía CLI.
+Nivel B (exploratorio, sin fecha): arrastre en vivo banda por banda vía GSettings - las claves por banda no tienen una ruta documentada y estable entre versiones de EasyEffects, así que se deja fuera de cualquier compromiso de versión hasta confirmarla.
+
+Nota de alcance del EQ: a diferencia de todo lo demás en Aurora (que está scoped al player que resolveActivePlayer() está mostrando), EasyEffects aplica el efecto a la salida de audio a nivel de sistema/stream. El EQ no es "por fuente MPRIS" aunque el resto de Aurora sí lo sea - esto debe quedar claro en cualquier UI que lo represente, para que nadie asuma que el EQ afecta solo a Spotify si Spotify es la fuente mostrada.
 
 ## Abierto / Pendiente
 
