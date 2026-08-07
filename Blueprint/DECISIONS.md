@@ -314,6 +314,77 @@ mitad: que algo en la UI los lea. Esto agrega:
 Ver `PLUGINS.md` para la guía completa y las limitaciones conocidas
 (sin limpieza automática al destruirse un plugin, sin versión de API
 garantizada todavía).
+## Fase 4: fuentes múltiples avanzadas (31/07/2026)
+
+Sobre la base de multi-player MPRIS (selección manual vía
+`AuroraPlayerSwitcher` + `AuroraState.selectPlayer()`), se agregan cuatro
+piezas nuevas, todas apagadas por defecto - ninguna cambia el
+comportamiento de Aurora a menos que se configure explícitamente en
+`AuroraConfig`.
+
+**`mergeDuplicatePlayers` como toggle.** La lógica de
+`computeMeaningfulPlayers()` ya existía pero estaba siempre activa. Ahora
+respeta `AuroraConfig.mergeDuplicatePlayers` (default `true`, mismo
+comportamiento de siempre). En `false`, cada entrada cruda de
+`MprisController.players` es su propia fuente - útil para depurar cuándo
+el algoritmo de deduplicación decide (incorrectamente o no) que dos
+entradas son la misma pista.
+
+**Prioridad de fuentes + auto-switch.** `AuroraConfig.sourcePriority` es
+una lista ordenada de substrings de identidad (mismo tipo de coincidencia
+case-insensitive que ya usa `isSameTrack()` y
+`AuroraBrowserDetectorPlugin.looksLikeBrowser()` - las identidades MPRIS
+no están estandarizadas para una comparación exacta). Con
+`AuroraConfig.autoSwitchEnabled` en `true`, `resolveActivePlayer()` recorre
+esa lista en orden y sigue a la primera fuente que esté realmente
+reproduciendo - pero **solo** cuando no hay una selección manual activa
+(`selectedIdentity !== ""` sigue ganando siempre). Sin ninguna de las dos
+configuradas, el comportamiento es exactamente el de antes: sigue a
+`MprisController.activePlayer`.
+
+**Estados de fuente extendidos, con límite honesto.** `AuroraState.players`
+ahora incluye `status` por entrada. Solo hay dos valores reales,
+`"Playing"`/`"Paused"`, leídos de `p.isPlaying` - MPRIS no tiene una forma
+confiable de reportar `Stopped` mientras el player sigue vivo en el bus (en
+la práctica, un player que se detiene del todo simplemente desaparece de
+`MprisController.players` en vez de anunciar el estado). Un tercer valor,
+`"Offline"`, es sintético: se genera para cualquier nombre en
+`sourcePriority` que no aparezca entre las fuentes detectadas en ese
+momento. Esto reutiliza `sourcePriority` como la lista de "fuentes
+conocidas" en vez de crear una segunda superficie de configuración
+separada solo para eso. Se decidió explícitamente **no** intentar
+sintetizar `Buffering`/`Loading`/`Error` - ningún protocolo estándar se los
+comunica a Aurora, y prometerlos repetiría el error ya corregido con el
+panel de bitrate/códec (Fase 3): mostrar datos que la fuente de datos real
+no garantiza.
+
+**`selectPlayer()` ignora identidades `Offline`.** Si `identity` no
+corresponde a una fuente realmente presente en `meaningfulPlayers`, la
+función no hace nada - fijar `selectedIdentity` a algo sin player real
+detrás solo para que `resolveActivePlayer()` lo vuelva a limpiar en el
+siguiente sync sería un no-op disfrazado de acción. `AuroraPlayerSwitcher`
+ya refleja esto visualmente: los chips `Offline` están atenuados
+(`AuroraConfig.switcherOfflineOpacity`) y no responden a tap.
+
+**Recordar última fuente - persistencia vía Quickshell, no vía "ii".**
+`AuroraConfig.rememberLastSource` activa un `FileView` + `JsonAdapter` en
+`AuroraPlayerProvider` apuntando a
+`Quickshell.statePath("aurora-last-source.json")` - mecanismo del propio
+motor de Quickshell (`Quickshell.Io`), confirmado contra la documentación
+oficial de Quickshell, no algo específico de "ii". Mantiene la misma regla
+de host-isolation que el resto del archivo ya sigue para MPRIS: la única
+dependencia dura de "ii" en este Provider sigue siendo `qs.services`
+(`MprisController`), no esto. `restoreLastSource()` solo fija el pin en
+`initialize()`, antes del primer `syncPlayer()` - si la fuente guardada ya
+no existe, `resolveActivePlayer()` limpia el pin exactamente igual que
+cualquier otra selección obsoleta.
+
+**Lo que sigue sin resolver:** la cola/playlist por fuente seleccionada
+(`org.mpris.MediaPlayer2.Playlists`) no se tocó en esta ronda - es un tipo
+de trabajo distinto (integrarse con cada fuente por separado, no solo
+lógica del Provider) y la mayoría de fuentes de referencia no la exponen
+de todas formas. Ver `ROADMAP.md` v0.4 y `Ideas.md`.
+
 
 ## Abierto / Pendiente
 
