@@ -1,0 +1,462 @@
+#!/usr/bin/env bash
+#
+# Aurora Doctor
+#
+# Terminal-only repository diagnostics. It does not participate in the
+# Aurora runtime and does not modify project files.
+#
+# Exit codes:
+#   0 = no errors
+#   1 = one or more errors
+#   2 = invalid command-line usage
+#
+# --strict turns warnings into a failing exit status.
+
+set -u
+
+ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+readonly ROOT_DIR
+STRICT=false
+ERRORS=0
+WARNINGS=0
+INFO_COUNT=0
+
+usage() {
+    cat <<'EOF'
+Aurora Doctor
+
+Usage:
+  ./aurora-doctor
+  ./aurora-doctor --strict
+  ./aurora-doctor --help
+
+Options:
+  --strict   Treat warnings as errors.
+  -h, --help Show this help.
+
+The doctor is read-only. It does not modify Aurora.
+EOF
+}
+
+while (($# > 0)); do
+    case "$1" in
+        --strict)
+            STRICT=true
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            printf 'Unknown option: %s\n' "$1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+info() {
+    INFO_COUNT=$((INFO_COUNT + 1))
+    printf '\033[1;36m[INFO]\033[0m %s\n' "$*"
+}
+
+ok() {
+    printf '\033[1;32m[ OK ]\033[0m %s\n' "$*"
+}
+
+warn() {
+    WARNINGS=$((WARNINGS + 1))
+    printf '\033[1;33m[WARN]\033[0m %s\n' "$*"
+}
+
+fail() {
+    ERRORS=$((ERRORS + 1))
+    printf '\033[1;31m[FAIL]\033[0m %s\n' "$*"
+}
+
+section() {
+    printf '\n\033[1;35m%s\033[0m\n' "$1"
+    printf '%s\n' '────────────────────────────────────────────'
+}
+
+has_file() {
+    [[ -f "$ROOT_DIR/$1" ]]
+}
+
+has_dir() {
+    [[ -d "$ROOT_DIR/$1" ]]
+}
+
+require_file() {
+    local relative="$1"
+
+    if has_file "$relative"; then
+        ok "$relative"
+    else
+        fail "Missing file: $relative"
+    fi
+}
+
+require_dir() {
+    local relative="$1"
+
+    if has_dir "$relative"; then
+        ok "$relative/"
+    else
+        fail "Missing directory: $relative/"
+    fi
+}
+
+# Extract names from AuroraConfig's property declarations.
+config_properties() {
+    sed -nE \
+        's/^[[:space:]]*(readonly[[:space:]]+)?property[[:space:]]+[^ ]+[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*$/\2/p' \
+        "$ROOT_DIR/Core/AuroraConfig.qml" |
+        sort -u
+}
+
+config_has_property() {
+    local property="$1"
+    config_properties | grep -Fxq "$property"
+}
+
+# Extract AuroraState property and signal names.
+state_members() {
+    sed -nE \
+        's/^[[:space:]]*(readonly[[:space:]]+)?property[[:space:]]+[^ ]+[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*$/\2/p;
+         /^[[:space:]]*signal[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*\(.*/s//\1/p' \
+        "$ROOT_DIR/Core/AuroraState.qml" |
+        sort -u
+}
+
+state_has_member() {
+    local member="$1"
+    state_members | grep -Fxq "$member"
+}
+
+provider_has_function() {
+    local file="$1"
+    local function_name="$2"
+
+    grep -Eq "^[[:space:]]*function[[:space:]]+${function_name}[[:space:]]*\\(" \
+        "$ROOT_DIR/$file"
+}
+
+check_command() {
+    local command="$1"
+    local label="$2"
+
+    if command -v "$command" >/dev/null 2>&1; then
+        ok "$label: $command"
+    else
+        warn "$label not available: $command"
+    fi
+}
+
+section "Aurora Doctor"
+
+info "Repository: $ROOT_DIR"
+info "Mode: read-only"
+
+section "Project structure"
+
+require_file "Core/AuroraState.qml"
+require_file "Core/AuroraConfig.qml"
+require_file "Core/AuroraTheme.qml"
+require_file "Core/AuroraAnimations.qml"
+require_file "Core/AuroraPluginRegistry.qml"
+
+require_file "Providers/AuroraPlayerProvider.qml"
+require_file "Providers/AuroraAudioProvider.qml"
+require_file "Providers/AuroraThemeProvider.qml"
+
+require_file "Components/Layout/AuroraPlayer.qml"
+require_file "Components/Layout/AuroraCompactView.qml"
+require_file "Components/Layout/AuroraHoverView.qml"
+require_file "Components/Layout/AuroraExpandedView.qml"
+require_file "Components/AuroraControls.qml"
+require_file "Components/AuroraCover.qml"
+require_file "Components/AuroraInfo.qml"
+require_file "Components/AuroraSpectrum.qml"
+require_file "Components/AuroraPlayerSwitcher.qml"
+
+require_dir "Blueprint"
+require_dir "Examples"
+require_dir "Themes"
+require_dir "Assets"
+
+section "QML root types"
+
+for provider in \
+    "Providers/AuroraPlayerProvider.qml" \
+    "Providers/AuroraAudioProvider.qml" \
+    "Providers/AuroraThemeProvider.qml"; do
+    if grep -q '^pragma Singleton' "$ROOT_DIR/$provider" &&
+       grep -q '^[[:space:]]*Singleton[[:space:]]*{' "$ROOT_DIR/$provider"; then
+        ok "$provider uses Quickshell Singleton"
+    else
+        fail "$provider must use pragma Singleton + Singleton root"
+    fi
+done
+
+if grep -q '^import Quickshell' "$ROOT_DIR/Core/AuroraPluginRegistry.qml"; then
+    ok "AuroraPluginRegistry uses Quickshell only for runtime discovery"
+else
+    fail "AuroraPluginRegistry is missing its Quickshell runtime dependency"
+fi
+
+if grep -q '^[[:space:]]*Item[[:space:]]*{' \
+    "$ROOT_DIR/Examples/Plugins/AuroraBrowserDetectorPlugin.qml"; then
+    ok "Browser example uses Item root"
+else
+    fail "Browser example must use Item root"
+fi
+
+section "AuroraConfig references"
+
+missing_config=0
+while IFS= read -r property; do
+    [[ -z "$property" ]] && continue
+
+    if config_has_property "$property"; then
+        :
+    else
+        fail "Undefined AuroraConfig property: $property"
+        missing_config=$((missing_config + 1))
+    fi
+done < <(
+    grep -RhoE 'AuroraConfig\.[A-Za-z_][A-Za-z0-9_]*' \
+        "$ROOT_DIR/Core" \
+        "$ROOT_DIR/Providers" \
+        "$ROOT_DIR/Components" |
+        sed 's/^AuroraConfig\.//' |
+        grep -v '^qml$' |
+        sort -u
+)
+
+if (( missing_config == 0 )); then
+    ok "All AuroraConfig references resolve"
+fi
+
+section "Naming consistency"
+
+if grep -RqsE 'AuroraConfig\.(Compact|Hover|Expanded|ThemeAurora|ThemeSystem)\b' \
+    "$ROOT_DIR/Core" "$ROOT_DIR/Providers" "$ROOT_DIR/Components"; then
+    fail "Legacy uppercase AuroraConfig names detected"
+else
+    ok "Widget/theme mode naming is consistent"
+fi
+
+if grep -RqsE 'AuroraConfig\.pluginPaths|loadConfiguredPlugins' \
+    "$ROOT_DIR/Core" "$ROOT_DIR/Providers" "$ROOT_DIR/Components" "$ROOT_DIR/Examples"; then
+    fail "Legacy pluginPaths/configured-plugin API detected"
+else
+    ok "Automatic plugin discovery API is consistent"
+fi
+
+section "AuroraState contract"
+
+for member in \
+    connected playerName playbackState players title artist album coverArt \
+    duration position progress canSeek spectrumLevel spectrumLevels \
+    audioAvailable shuffleEnabled repeatMode plugins widgetMode \
+    trackChanged connectionChanged \
+    togglePlaying next previous seek toggleShuffle cycleRepeat selectPlayer; do
+
+    if state_has_member "$member"; then
+        :
+    else
+        fail "AuroraState member missing: $member"
+    fi
+done
+
+section "Provider calls"
+
+declare -a expected_calls=(
+    "Providers/AuroraPlayerProvider.qml|initialize"
+    "Providers/AuroraAudioProvider.qml|initialize"
+    "Providers/AuroraThemeProvider.qml|initialize"
+    "Core/AuroraPluginRegistry.qml|discoverPlugins"
+)
+
+for entry in "${expected_calls[@]}"; do
+    file="${entry%%|*}"
+    function_name="${entry#*|}"
+
+    if provider_has_function "$file" "$function_name"; then
+        ok "$file::$function_name()"
+    else
+        fail "$file::$function_name() is called but not defined"
+    fi
+done
+
+section "Action routing"
+
+for action in togglePlaying next previous seek toggleShuffle cycleRepeat selectPlayer; do
+    if grep -q "function on${action^}" "$ROOT_DIR/Providers/AuroraPlayerProvider.qml"; then
+        ok "AuroraState.$action() is routed through AuroraPlayerProvider"
+    else
+        fail "Missing AuroraState action handler: $action"
+    fi
+done
+
+section "Host isolation"
+
+host_import_found=false
+
+while IFS= read -r file; do
+    if grep -Eq '^[[:space:]]*import[[:space:]]+qs(\.|[[:space:]])' "$file"; then
+        fail "Host import found in Core/Components: ${file#"$ROOT_DIR"/}"
+        host_import_found=true
+    fi
+done < <(
+    find "$ROOT_DIR/Core" "$ROOT_DIR/Components" \
+        -type f -name '*.qml' -print
+)
+
+if ! $host_import_found; then
+    ok "Core/Components do not import qs.* host modules"
+fi
+
+section "Magic-number hygiene"
+
+magic_found=false
+
+check_magic() {
+    local file="$1"
+    local pattern="$2"
+    local description="$3"
+
+    if grep -Eq "$pattern" "$ROOT_DIR/$file"; then
+        fail "$description ($file)"
+        magic_found=true
+    fi
+}
+
+check_magic \
+    "Providers/AuroraPlayerProvider.qml" \
+    'Math\.abs\(.*\)[[:space:]]*<=[[:space:]]*2' \
+    "Duplicate-player tolerance is hard-coded"
+
+if ! $magic_found; then
+    ok "Known architectural magic numbers are centralized"
+fi
+
+section "Plugin contract"
+
+if grep -q 'readonly property int apiVersion' "$ROOT_DIR/Core/AuroraPluginRegistry.qml"; then
+    ok "Plugin API version is explicit"
+else
+    fail "Plugin API version is missing"
+fi
+
+if grep -q -- '-name", "plugin.qml"' "$ROOT_DIR/Core/AuroraPluginRegistry.qml"; then
+    ok "Plugin discovery uses a stable plugin.qml entrypoint"
+else
+    fail "Plugin discovery entrypoint contract is missing"
+fi
+
+if grep -q 'Component.onDestruction' "$ROOT_DIR/Examples/Plugins/AuroraBrowserDetectorPlugin.qml" &&
+   grep -q 'unregisterProvider' "$ROOT_DIR/Examples/Plugins/AuroraBrowserDetectorPlugin.qml"; then
+    ok "Plugin example cleans up its registration"
+else
+    fail "Plugin example does not unregister itself"
+fi
+
+section "Theme contract"
+
+if grep -q 'property int themeMode: themeSystem' "$ROOT_DIR/Core/AuroraConfig.qml"; then
+    ok "System theme is the default"
+else
+    fail "AuroraConfig does not default to themeSystem"
+fi
+
+section "Documentation consistency"
+
+if grep -RqsE 'AuroraConfig\.(Compact|Hover|Expanded|ThemeAurora|ThemeSystem|pluginPaths)' \
+    "$ROOT_DIR/Blueprint"; then
+    fail "Blueprint contains obsolete AuroraConfig names"
+else
+    ok "Blueprint configuration names are current"
+fi
+
+if grep -RqsE 'loadConfiguredPlugins|pluginPaths' \
+    "$ROOT_DIR/Blueprint" "$ROOT_DIR/Examples"; then
+    fail "Blueprint/Examples contain obsolete plugin loading terminology"
+else
+    ok "Plugin documentation matches automatic discovery"
+fi
+
+section "Tooling"
+
+check_command "bash" "Shell runtime"
+check_command "find" "Plugin discovery dependency"
+check_command "grep" "Repository diagnostics dependency"
+check_command "quickshell" "Quickshell runtime"
+check_command "cava" "Spectrum dependency"
+check_command "qmllint" "QML linter"
+
+if command -v shellcheck >/dev/null 2>&1; then
+    if shellcheck "$ROOT_DIR/install.sh" "$ROOT_DIR/aurora-doctor"; then
+        ok "Shell scripts pass shellcheck"
+    else
+        fail "Shellcheck reported errors"
+    fi
+else
+    warn "shellcheck not installed; shell script lint was skipped"
+fi
+
+section "External plugin directory"
+
+config_base="${XDG_CONFIG_HOME:-${HOME}/.config}"
+plugin_base="${config_base%/}/aurora/plugins"
+
+if [[ -d "$plugin_base" ]]; then
+    ok "Plugin directory exists: $plugin_base"
+else
+    warn "Plugin directory does not exist yet: $plugin_base"
+fi
+
+section "Installer"
+
+if [[ -x "$ROOT_DIR/install.sh" ]]; then
+    ok "install.sh is executable"
+else
+    fail "install.sh is not executable"
+fi
+
+installer_test_root="$(mktemp -d "${TMPDIR:-/tmp}/aurora-doctor.XXXXXX")"
+installer_test_target="$installer_test_root/quickshell"
+
+if "$ROOT_DIR/install.sh" --dry-run --target "$installer_test_target" >/dev/null 2>&1; then
+    ok "install.sh --dry-run succeeds"
+else
+    fail "install.sh --dry-run failed"
+fi
+
+rm -rf -- "$installer_test_root"
+
+section "Summary"
+
+printf 'Errors:   %d\n' "$ERRORS"
+printf 'Warnings: %d\n' "$WARNINGS"
+printf 'Info:     %d\n' "$INFO_COUNT"
+
+if (( ERRORS > 0 )); then
+    printf '\n\033[1;31mAurora is not ready for clean integration.\033[0m\n'
+    exit 1
+fi
+
+if $STRICT && (( WARNINGS > 0 )); then
+    printf '\n\033[1;31mStrict mode: warnings are treated as errors.\033[0m\n'
+    exit 1
+fi
+
+if (( WARNINGS > 0 )); then
+    printf '\n\033[1;33mAurora is structurally clean, but optional warnings remain.\033[0m\n'
+else
+    printf '\n\033[1;32mAurora integration looks clean.\033[0m\n'
+fi
+
+exit 0
