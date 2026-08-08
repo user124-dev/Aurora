@@ -24,16 +24,18 @@ QtObject {
     readonly property int themeAurora: 0
     readonly property int themeSystem: 1
 
-    // Standalone Aurora must not depend on a host theme API. Host-specific
-    // theme adapters may map themeSystem later when Aurora is embedded.
     property int themeMode: themeAurora
 
     readonly property int compactWidth: 48
     readonly property int compactHeight: 48
     readonly property int hoverWidth: 360
     readonly property int hoverHeight: 72
-    readonly property int expandedWidth: 520
-    readonly property int expandedHeight: 300
+
+    // Expanded needs enough vertical budget for switcher + cover/info +
+    // spectrum + controls without forcing the layout to overflow. The
+    // extra width also leaves a clean area for the future equalizer section.
+    readonly property int expandedWidth: 620
+    readonly property int expandedHeight: 380
 
     readonly property int widgetPadding: 8
     readonly property int widgetSpacing: 10
@@ -67,7 +69,7 @@ QtObject {
     readonly property real spectrumIdleWaveSpeed: 0.5
     readonly property real spectrumIdleRestLevel: 0.06
     readonly property real spectrumIdleOpacity: 0.3
-    readonly property int expandedSpectrumHeight: 64
+    readonly property int expandedSpectrumHeight: 90
 
     readonly property int controlButtonSize: 26
     readonly property int playButtonSize: 32
