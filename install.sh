@@ -1,251 +1,268 @@
 #!/usr/bin/env bash
-#
-# Aurora installer
-#
-# Installs Aurora into a Quickshell module directory while keeping the
-# source repository untouched and preserving a dated backup.
-#
-# Usage:
-#   ./install.sh
-#   ./install.sh /path/to/quickshell/modules/mediaControls
-#   ./install.sh --target /path/to/quickshell/modules/mediaControls
-#   ./install.sh --dry-run
-#   ./install.sh --no-backup
-#
+# Aurora installer / updater
+# Installs Aurora as a named standalone Quickshell configuration.
+# Required dependency: Quickshell >= 0.2.0.
+# Optional dependency: Cava for the spectrum.
 
-set -euo pipefail
+set -u
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-readonly SCRIPT_DIR
-readonly DEFAULT_TARGET="${HOME}/.config/quickshell/ii/modules/ii/mediaControls"
-
+CONFIG_BASE="${XDG_CONFIG_HOME:-${HOME}/.config}"
+DEFAULT_TARGET="${CONFIG_BASE%/}/quickshell/Aurora"
+BIN_DIR="${HOME}/.local/bin"
 TARGET_DIR="$DEFAULT_TARGET"
 BACKUP_ENABLED=true
 DRY_RUN=false
+MIN_QS_VERSION="0.2.0"
 
-info() {
-    printf '\033[1;36m[Aurora]\033[0m %s\n' "$*"
-}
-
-success() {
-    printf '\033[1;32m[Aurora]\033[0m %s\n' "$*"
-}
-
-warning() {
-    printf '\033[1;33m[Aurora]\033[0m %s\n' "$*"
-}
-
-error() {
-    printf '\033[1;31m[Aurora]\033[0m %s\n' "$*" >&2
-}
+info() { printf '\033[1;36m[Aurora]\033[0m %s\n' "$*"; }
+success() { printf '\033[1;32m[Aurora]\033[0m %s\n' "$*"; }
+warning() { printf '\033[1;33m[Aurora]\033[0m %s\n' "$*"; }
+error() { printf '\033[1;31m[Aurora]\033[0m %s\n' "$*" >&2; }
 
 usage() {
-    cat <<'EOF'
+    cat <<EOF
 Aurora installer
 
 Usage:
-  ./install.sh [TARGET]
-  ./install.sh --target TARGET
-  ./install.sh [options]
+  ./install.sh
+  ./install.sh --dry-run
+  ./install.sh --no-backup
+  ./install.sh --target PATH
 
-Options:
-  --target PATH     Install into PATH.
-  --no-backup       Replace an existing Aurora installation without backup.
-  --dry-run         Validate and show the planned operation without changing files.
-  -h, --help        Show this help.
+Default installation:
+  $DEFAULT_TARGET
 
-Default target:
-  ~/.config/quickshell/ii/modules/ii/mediaControls
-
-The installed Aurora directory is:
-  <TARGET>/Aurora
+After installation:
+  qs -c Aurora
+  ./aurora-doctor
 EOF
 }
 
 while (($# > 0)); do
     case "$1" in
         --target)
-            [[ $# -ge 2 ]] || {
-                error "--target requires a path."
-                exit 2
-            }
-            TARGET_DIR="$2"
-            shift 2
-            ;;
-        --no-backup)
-            BACKUP_ENABLED=false
-            shift
-            ;;
-        --dry-run)
-            DRY_RUN=true
-            shift
-            ;;
-        -h|--help)
-            usage
-            exit 0
-            ;;
-        --)
-            shift
-            break
-            ;;
-        -*)
-            error "Unknown option: $1"
-            usage >&2
-            exit 2
-            ;;
-        *)
-            if [[ "$TARGET_DIR" != "$DEFAULT_TARGET" ]]; then
-                error "The target was specified more than once."
-                exit 2
-            fi
-            TARGET_DIR="$1"
-            shift
-            ;;
+            [[ $# -ge 2 ]] || { error "--target requiere una ruta."; exit 2; }
+            TARGET_DIR="$2"; shift 2 ;;
+        --no-backup) BACKUP_ENABLED=false; shift ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) error "Opción desconocida: $1"; usage >&2; exit 2 ;;
     esac
 done
 
-if (($# > 0)); then
-    error "Unexpected argument: $1"
-    exit 2
-fi
-
-DEST_DIR="${TARGET_DIR%/}/Aurora"
+DEST_DIR="${TARGET_DIR%/}"
+VERSION_FILE="$SCRIPT_DIR/VERSION"
 
 require_file() {
-    local relative="$1"
-
-    if [[ ! -f "$SCRIPT_DIR/$relative" ]]; then
-        error "Missing required file: $relative"
-        exit 1
-    fi
+    [[ -f "$SCRIPT_DIR/$1" ]] || { error "Archivo requerido faltante: $1"; exit 1; }
 }
 
-info "Validating Aurora source..."
-require_file "Core/AuroraState.qml"
-require_file "Core/AuroraConfig.qml"
-require_file "Core/AuroraPluginRegistry.qml"
-require_file "Components/Layout/AuroraPlayer.qml"
-require_file "aurora-doctor"
+for file in \
+    VERSION shell.qml install.sh aurora-doctor \
+    Core/AuroraState.qml Core/AuroraConfig.qml Core/AuroraPluginRegistry.qml \
+    Components/Layout/AuroraPlayer.qml \
+    Providers/AuroraMprisController.qml Providers/AuroraPlayerProvider.qml; do
+    require_file "$file"
+done
 
+# Never install into the source repository or one of its children.
 if command -v realpath >/dev/null 2>&1; then
     source_real="$(realpath -m "$SCRIPT_DIR")"
     dest_real="$(realpath -m "$DEST_DIR")"
-
-    if [[ "$dest_real" == "$source_real" ]]; then
-        if $DRY_RUN; then
-            warning "Dry-run target is the source repository itself; no files will be changed."
-        else
-            error "The installation destination is the source repository itself."
-            exit 1
-        fi
-    elif [[ "$dest_real" == "$source_real/"* ]]; then
-        error "The installation destination is inside the Aurora source tree."
+    if [[ "$dest_real" == "$source_real" || "$dest_real" == "$source_real/"* ]]; then
+        error "El destino de instalación no puede estar dentro del repositorio Aurora."
         exit 1
     fi
 fi
 
-if [[ ! -d "$TARGET_DIR" ]]; then
-    info "Target directory does not exist yet:"
-    info "  $TARGET_DIR"
-fi
+AURORA_VERSION="$(<"$VERSION_FILE")"
+info "Aurora $AURORA_VERSION"
+info "Destino: $DEST_DIR"
 
-info "Source:"
-info "  $SCRIPT_DIR"
-info "Destination:"
-info "  $DEST_DIR"
+command_version() {
+    local command="$1"
+    "$command" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1
+}
 
-if [[ -d "$DEST_DIR" ]]; then
-    if $BACKUP_ENABLED; then
-        BACKUP_DIR="${TARGET_DIR%/}/Aurora.backup.$(date '+%Y%m%d-%H%M%S')"
-        info "Existing installation will be backed up to:"
-        info "  $BACKUP_DIR"
+QS_CMD=""
+if command -v qs >/dev/null 2>&1; then QS_CMD="qs"; fi
+if [[ -z "$QS_CMD" ]] && command -v quickshell >/dev/null 2>&1; then QS_CMD="quickshell"; fi
+
+version_at_least() {
+    [[ "$(printf '%s\n%s\n' "$MIN_QS_VERSION" "$1" | sort -V | head -n1)" == "$MIN_QS_VERSION" ]]
+}
+
+package_manager() {
+    if command -v pacman >/dev/null 2>&1; then echo pacman
+    elif command -v dnf >/dev/null 2>&1; then echo dnf
+    elif command -v apt-get >/dev/null 2>&1; then echo apt
+    elif command -v zypper >/dev/null 2>&1; then echo zypper
+    elif command -v emerge >/dev/null 2>&1; then echo emerge
+    elif command -v nix >/dev/null 2>&1; then echo nix
+    elif command -v guix >/dev/null 2>&1; then echo guix
+    else echo none; fi
+}
+
+install_package() {
+    local manager="$1" package="$2"
+    local sudo_cmd=()
+    [[ $EUID -eq 0 ]] || sudo_cmd=(sudo)
+
+    case "$manager" in
+        pacman) "${sudo_cmd[@]}" pacman -S --needed "$package" ;;
+        dnf) "${sudo_cmd[@]}" dnf install -y "$package" ;;
+        apt) "${sudo_cmd[@]}" apt-get update && "${sudo_cmd[@]}" apt-get install -y "$package" ;;
+        zypper) "${sudo_cmd[@]}" zypper --non-interactive install "$package" ;;
+        emerge) "${sudo_cmd[@]}" emerge --ask=n "$package" ;;
+        nix) nix profile install "nixpkgs#$package" ;;
+        guix) guix install "$package" ;;
+        *) return 1 ;;
+    esac
+}
+
+ask_required() {
+    local name="$1"
+    printf '\n'
+    warning "Dependencia clave faltante: $name"
+    printf '¿Desea instalarla? [Y/n] '
+    read -r answer
+    answer="${answer:-Y}"
+    [[ "$answer" =~ ^[Yy]$ ]]
+}
+
+ask_optional() {
+    local name="$1"
+    printf '\n'
+    warning "Dependencia opcional faltante: $name"
+    printf '¿Desea instalarla? [Y/n] '
+    read -r answer
+    answer="${answer:-Y}"
+    [[ "$answer" =~ ^[Yy]$ ]]
+}
+
+MANAGER="$(package_manager)"
+
+# --------------------------- Required dependency ---------------------------
+if [[ -z "$QS_CMD" ]]; then
+    if ! ask_required "Quickshell >= $MIN_QS_VERSION"; then
+        error "Fallo de instalación: Quickshell es obligatorio."
+        exit 1
+    fi
+
+    if ! install_package "$MANAGER" quickshell; then
+        error "No fue posible instalar Quickshell automáticamente con el gestor disponible: $MANAGER"
+        error "Instale Quickshell >= $MIN_QS_VERSION y vuelva a ejecutar ./install.sh."
+        exit 1
+    fi
+
+    if command -v qs >/dev/null 2>&1; then QS_CMD="qs"
+    elif command -v quickshell >/dev/null 2>&1; then QS_CMD="quickshell"
     else
-        warning "Existing installation will be replaced without a backup."
+        error "Fallo de instalación: Quickshell no quedó disponible."
+        exit 1
     fi
 fi
 
-CONFIG_BASE="${XDG_CONFIG_HOME:-${HOME}/.config}"
-PLUGIN_BASE="${CONFIG_BASE%/}/aurora/plugins"
-info "Automatic plugin directory:"
-info "  $PLUGIN_BASE"
+QS_VERSION="$(command_version "$QS_CMD")"
+if [[ -n "$QS_VERSION" ]]; then
+    if version_at_least "$QS_VERSION"; then
+        success "Quickshell $QS_VERSION detectado."
+    else
+        error "Dependencia clave incompatible: Quickshell $QS_VERSION."
+        error "Aurora requiere Quickshell >= $MIN_QS_VERSION."
+        exit 1
+    fi
+else
+    warning "No se pudo determinar la versión de Quickshell; se continuará con la validación runtime."
+fi
+
+# --------------------------- Optional dependency ---------------------------
+if command -v cava >/dev/null 2>&1; then
+    success "Cava detectado: espectro disponible."
+else
+    if ask_optional "Cava (espectro de audio)"; then
+        if install_package "$MANAGER" cava; then
+            success "Cava instalado; espectro habilitado."
+        else
+            warning "No fue posible instalar Cava automáticamente. Aurora continuará sin espectro."
+        fi
+    else
+        warning "Cava no será instalado. Aurora continuará sin espectro."
+    fi
+fi
 
 if $DRY_RUN; then
-    info "Planned actions:"
-    info "  - validate the Aurora source"
-    if [[ -d "$DEST_DIR" ]]; then
-        if $BACKUP_ENABLED; then
-            info "  - move the existing installation to:"
-            info "      $BACKUP_DIR"
-        else
-            info "  - remove the existing installation (--no-backup)"
-        fi
-    fi
-    info "  - copy Aurora to:"
-    info "      $DEST_DIR"
-    info "  - remove the copied .git directory"
-    info "  - make install.sh and aurora-doctor executable"
-    info "  - create the external plugin directory:"
-    info "      $PLUGIN_BASE"
-    success "Dry run complete. No files were changed."
+    info "Dry-run completado: no se modificaron archivos."
     exit 0
 fi
 
+# --------------------------- Stage and validate ----------------------------
 STAGE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/aurora-install.XXXXXX")"
 STAGE_DIR="$STAGE_ROOT/Aurora"
+BACKUP_DIR=""
 
-cleanup() {
-    rm -rf -- "$STAGE_ROOT"
-}
+cleanup() { rm -rf -- "$STAGE_ROOT"; }
 trap cleanup EXIT
 
 mkdir -p "$STAGE_DIR"
 cp -a "$SCRIPT_DIR"/. "$STAGE_DIR"/
 rm -rf "$STAGE_DIR/.git"
-
-# The script is a distributed entrypoint, so keep it executable even
-# when Aurora came from a filesystem/archive that lost mode bits.
+rm -f "$STAGE_DIR/.qmlls.ini"
 chmod +x "$STAGE_DIR/install.sh" "$STAGE_DIR/aurora-doctor"
 
-# Re-check the staged copy before touching the existing installation.
-[[ -f "$STAGE_DIR/Core/AuroraState.qml" ]]
-[[ -f "$STAGE_DIR/Core/AuroraConfig.qml" ]]
-[[ -f "$STAGE_DIR/Core/AuroraPluginRegistry.qml" ]]
-[[ -f "$STAGE_DIR/Components/Layout/AuroraPlayer.qml" ]]
+# The whole managed installation is replaced as one unit. This automatically
+# restores missing files, replaces outdated files and removes obsolete Aurora
+# files while preserving the previous installation in a dated backup.
+mkdir -p "$(dirname -- "$DEST_DIR")"
 
-mkdir -p "$TARGET_DIR"
-
-BACKUP_DIR=""
 if [[ -d "$DEST_DIR" ]]; then
     if $BACKUP_ENABLED; then
-        BACKUP_DIR="${TARGET_DIR%/}/Aurora.backup.$(date '+%Y%m%d-%H%M%S')"
+        BACKUP_DIR="${DEST_DIR}.backup.$(date '+%Y%m%d-%H%M%S')"
+        info "Instalación existente detectada; creando backup: $BACKUP_DIR"
         mv -- "$DEST_DIR" "$BACKUP_DIR"
     else
+        warning "Actualización sin backup solicitada."
         rm -rf -- "$DEST_DIR"
     fi
 fi
 
 if ! mv -- "$STAGE_DIR" "$DEST_DIR"; then
-    error "Failed to activate the new installation."
-
+    error "Fallo de instalación al activar Aurora."
     if [[ -n "$BACKUP_DIR" && -d "$BACKUP_DIR" && ! -e "$DEST_DIR" ]]; then
-        warning "Restoring the previous installation..."
         mv -- "$BACKUP_DIR" "$DEST_DIR"
+        warning "Instalación anterior restaurada."
     fi
-
     exit 1
 fi
 
-# The directory is intentionally created outside Aurora. It is the
-# stable location scanned by AuroraPluginRegistry.
-mkdir -p "$PLUGIN_BASE"
+# External plugin location is intentionally preserved outside Aurora.
+mkdir -p "${CONFIG_BASE%/}/aurora/plugins"
 
-success "Aurora installed successfully."
-info "Installed at:"
-info "  $DEST_DIR"
-info "Run diagnostics with:"
-info "  $DEST_DIR/aurora-doctor"
+# Convenience command; no system-wide write is required.
+mkdir -p "$BIN_DIR"
+ln -sfn "$DEST_DIR/aurora-doctor" "$BIN_DIR/aurora-doctor"
+
+# Validate the installed payload before declaring success.
+if ! "$DEST_DIR/aurora-doctor" --installed >/dev/null 2>&1; then
+    error "Fallo de validación después de la instalación."
+    rm -rf -- "$DEST_DIR"
+    if [[ -n "$BACKUP_DIR" && -d "$BACKUP_DIR" ]]; then
+        mv -- "$BACKUP_DIR" "$DEST_DIR"
+        warning "Instalación anterior restaurada."
+    fi
+    exit 1
+fi
+
+success "Aurora $AURORA_VERSION instalado/actualizado correctamente."
+info "Ejecutar: qs -c Aurora"
+info "Diagnóstico: ./aurora-doctor"
+info "Diagnóstico instalado: $BIN_DIR/aurora-doctor"
+
+if [[ ":${PATH:-}:" != *":$BIN_DIR:"* ]]; then
+    warning "$BIN_DIR no está en PATH; el enlace existe y puede añadirse al PATH más adelante."
+fi
 
 if [[ -n "$BACKUP_DIR" ]]; then
-    info "Previous installation:"
-    info "  $BACKUP_DIR"
+    info "Backup anterior conservado en: $BACKUP_DIR"
 fi
