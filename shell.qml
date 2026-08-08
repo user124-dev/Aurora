@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import "./Components/Layout"
 
 // Aurora's standalone runtime entrypoint.
 // The widget itself remains reusable: this file only provides a window
