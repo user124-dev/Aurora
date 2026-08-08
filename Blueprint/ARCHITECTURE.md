@@ -92,7 +92,7 @@ Contrato visual consumido por los componentes. `AuroraThemeProvider` es el únic
 
 ### `AuroraMprisController`
 
-Adaptador pequeño sobre `Quickshell.Services.Mpris`. Expone una interfaz estable para Aurora y evita dependencias de `qs.services` o cualquier árbol de End-4/ii.
+Adaptador pequeño sobre `Quickshell.Services.Mpris`. Expone una interfaz estable para Aurora y evita dependencias de módulos del host.
 
 ### `AuroraPlayerProvider`
 
