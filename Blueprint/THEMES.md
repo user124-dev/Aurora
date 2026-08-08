@@ -1,31 +1,44 @@
 # Temas en Aurora
 
-Aurora está diseñado para que los temas sean intercambiables y fáciles de crear, siguiendo el principio de "libre elección de temas y de código" (`PHILOSOPHY.md`).
+Aurora separa el contrato visual (`Core/AuroraTheme.qml`) de la fuente de valores (`AuroraThemeProvider`). Los componentes nunca deben leer directamente el tema de un host.
 
 ## Estructura actual
 
-```
+```text
 Themes/
 └── Default/
-    ├── Theme.qml
-    └── temas WIP   # notas de trabajo, no un tema real
+    └── Theme.qml
 ```
 
-Solo existe el tema `Default` por ahora, ya con una paleta real (`colorBackground`, `colorPrimary`, tipografía, etc. — ver `Themes/Default/Theme.qml`).
+`Default` es el tema standalone y la fuente predeterminada de Aurora.
 
-## Cómo funciona
+## Modos
 
-- Ningún componente visual (`AuroraSpectrum`, `AuroraControls`, `AuroraCover`, `AuroraInfo`) lee colores de un host externo (`Appearance.colors.*`) directamente — todos leen de `Core/AuroraTheme.qml`, el único contrato visual permitido (ver `DECISIONS.md` → "Host isolation").
-- `AuroraConfig.themeMode` decide la fuente: `themeAurora` (paleta propia) o `themeSystem` (adaptado al host). Son constantes `int`, no strings.
-- `AuroraThemeProvider` es el único módulo con permiso para depender del host y traducir eso a `AuroraTheme`.
+`AuroraConfig.themeMode` define el modo lógico:
 
-> Nota (actualizada en fase 3): la migración de componentes a `AuroraTheme` ya está hecha — ninguno de los cuatro importa `qs.modules.common`. Lo único todavía abierto en este frente es que `AuroraThemeProvider` no es reactivo en modo `themeSystem` si el host cambia de tema en caliente (ver `DECISIONS.md` → "Abierto / Pendiente").
+- `themeAurora` — usa la paleta incluida en Aurora.
+- `themeSystem` — reservado para adapters de host. En standalone mantiene la paleta Aurora para evitar dependencias externas.
 
-## Cómo crear un tema nuevo (borrador de proceso)
+La implementación actual no importa `qs.modules.common` ni ningún singleton de End-4/ii.
 
-1. Duplicar `Themes/Default/` en `Themes/<NombreDelTema>/`.
-2. Definir la paleta de colores en el `Theme.qml` correspondiente.
-3. Verificar que ningún componente tenga colores hardcodeados fuera del sistema de temas.
-4. Documentar el tema (nombre, autor, capturas si es posible).
+## Contrato
 
-`AuroraTheme`/`AuroraThemeProvider` ya están implementados; lo pendiente para v0.2 es formalizar este borrador en un proceso probado con al menos un tema real además de `Default` (ver `ROADMAP.md`).
+Los componentes consumen:
+
+```qml
+AuroraTheme.colorBackground
+AuroraTheme.colorPrimary
+AuroraTheme.fontFamily
+```
+
+No deben importar `Appearance`, Material Symbols u otro sistema visual del host.
+
+## Crear un tema
+
+1. Duplicar `Themes/Default/` en `Themes/<Nombre>/`.
+2. Mantener el contrato de propiedades de `AuroraTheme`.
+3. Evitar lógica de runtime dentro del archivo de tema.
+4. Documentar autor, licencia y cambios visuales.
+5. Validar el tema con `aurora-doctor`.
+
+Los adapters de temas específicos de compositor o shell deben mantenerse fuera del Core y añadirse solo cuando exista una integración real que probar.
