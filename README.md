@@ -1,35 +1,111 @@
 # Aurora
 
+Aurora es un widget multimedia para **Quickshell** con identidad propia. Combina MPRIS para reproducción y metadata con Cava para el espectro opcional, y presenta tres modos visuales: Compact, Hover y Expanded.
 
-Un sistema de visualización musical (barras de espectro) con identidad propia, construido como widget nativo para **Quickshell**.
+## Objetivo
 
-## ¿Qué es Aurora?
+Aurora nació del estudio de arquitecturas de Quickshell y End-4. El objetivo es aprender de esos patrones sin depender de End-4/ii en el runtime: Aurora debe mantener su propia arquitectura, API y sistema de distribución.
 
-Aurora es un proyecto en desarrollo activo, nacido del estudio de la arquitectura de **End-4 Quickshell**. El objetivo no es replicarlo, sino comprender su diseño, mejorarlo y construir una base modular y mantenible con identidad propia.
+## Instalación
 
-No es simplemente un gráfico de barras aleatorio: busca representar la música en tiempo real, reaccionando a la nota y frecuencia que se está reproduciendo en cada momento.
+La experiencia objetivo es de pocos pasos:
 
-## Estado actual
+```bash
+git clone https://github.com/user124-dev/Aurora.git
+cd Aurora
+./install.sh
+```
 
-**Work in Progress.** Aurora está en fase temprana de desarrollo. La arquitectura base 
+El instalador coloca Aurora en:
 
-Consulta [`DECISIONS.md`](./DECISIONS.md) para el detalle técnico de decisiones tomadas y pendientes.
+```text
+~/.config/quickshell/Aurora
+```
 
-## Requisitos
+y puede ejecutarse con:
 
-- [Quickshell](https://quickshell.org/) instalado y configurado.
-- Qt/QML (versión compatible con tu instalación de Quickshell).
-- `cava` (candidato actual para la captura de espectro de audio — ver DECISIONS.md).
+```bash
+qs -c Aurora
+```
 
+`install.sh` detecta dependencias, pregunta antes de instalar dependencias clave u opcionales, actualiza instalaciones existentes, restaura archivos faltantes y realiza rollback si una actualización falla.
 
-## Filosofía del proyecto
+## Dependencias
 
-Ver [`PHILOSOPHY.md`](./PHILOSOPHY.md) para los principios que guían las decisiones técnicas de Aurora.
+### Clave
 
-## Contribuciones 
+- **Quickshell >= 0.2.0** — necesario para ejecutar Aurora.
 
-Leonardo C y Diego A
+Si falta, el instalador pregunta si desea instalarlo. Si el usuario rechaza una dependencia clave, la instalación falla y no deja una instalación parcial.
+
+### Opcional
+
+- **Cava** — proporciona el espectro de audio.
+
+Si falta y el usuario decide no instalarlo, Aurora continúa funcionando con sus funciones multimedia y su fallback visual del espectro.
+
+## Diagnóstico
+
+```bash
+./aurora-doctor
+```
+
+Doctor es read-only y comprueba:
+
+- entrypoint standalone;
+- estructura de Aurora;
+- versión de Quickshell;
+- uso de `Quickshell.Services.Mpris`;
+- Cava;
+- D-Bus/MPRIS;
+- sesión Wayland/X11;
+- compositor detectado;
+- imports host-specific;
+- instalador;
+- coherencia del Blueprint.
+
+## Arquitectura
+
+```text
+Aurora
+├── shell.qml
+├── Core/
+├── Components/
+├── Providers/
+│   ├── AuroraMprisController.qml
+│   ├── AuroraPlayerProvider.qml
+│   ├── AuroraAudioProvider.qml
+│   └── AuroraThemeProvider.qml
+├── Themes/
+├── Assets/
+├── Blueprint/
+└── aurora-doctor
+```
+
+El Core y los Components no conocen APIs de End-4/ii. MPRIS se consume mediante la API oficial de Quickshell y Cava es opcional.
+
+## Compatibilidad
+
+Aurora no intenta duplicar cada compositor. La estrategia es aprovechar las APIs generales de Quickshell y mantener adapters específicos separados.
+
+Esto permite que el mismo núcleo multimedia pueda utilizarse en distintos entornos soportados por Quickshell, aunque determinadas integraciones visuales o de posicionamiento puedan requerir un adapter específico.
+
+## Documentación
+
+La especificación técnica está en [`Blueprint/`](./Blueprint/), especialmente:
+
+- [`ARCHITECTURE.md`](./Blueprint/ARCHITECTURE.md)
+- [`API.md`](./Blueprint/API.md)
+- [`INSTALL.md`](./Blueprint/INSTALL.md)
+- [`DECISIONS.md`](./Blueprint/DECISIONS.md)
+- [`PROVIDERS.md`](./Blueprint/PROVIDERS.md)
+
+## Estado
+
+**Work in Progress — etapa Runtime & Distribution.**
+
+La prioridad actual es conseguir una instalación reproducible, standalone, actualizable y diagnosticable antes de ampliar funcionalidades.
 
 ## Licencia
 
-Este proyecto está bajo licencia [MIT](./LICENSE).
+MIT — ver [`LICENSE`](./LICENSE).
