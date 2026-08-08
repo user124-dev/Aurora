@@ -76,12 +76,14 @@ for file in \
     require_file "$file"
 done
 
-# Catch the class of runtime warning that previously escaped the doctor:
-# a pragma Singleton must use Quickshell's Singleton root type.
-if grep -q '^pragma Singleton' "$ROOT_DIR/Core/AuroraAnimations.qml" && grep -q '^Singleton {' "$ROOT_DIR/Core/AuroraAnimations.qml"; then
-    ok "AuroraAnimations uses Quickshell's Singleton root"
+# AuroraAnimations is intentionally a host-independent QML singleton.
+# In this project, the singleton uses QtQuick's plain QtObject root rather
+# than Quickshell.Singleton so Core remains free of qs.* host imports.
+if grep -q '^pragma Singleton' "$ROOT_DIR/Core/AuroraAnimations.qml" \
+    && grep -q '^QtObject {' "$ROOT_DIR/Core/AuroraAnimations.qml"; then
+    ok "AuroraAnimations is a host-independent QML singleton"
 else
-    fail "AuroraAnimations is not declared as a valid Quickshell singleton"
+    fail "AuroraAnimations is not declared as a valid host-independent singleton"
 fi
 
 section "Host isolation"
