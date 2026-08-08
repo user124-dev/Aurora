@@ -44,7 +44,7 @@ Propiedades de fuentes:
 | `autoSwitchEnabled` | `false` | Activa selección automática por prioridad. |
 | `rememberLastSource` | `false` | Persiste la última fuente seleccionada. |
 
-El modo de tema predeterminado es `themeAurora`, porque el runtime standalone no depende de ningún tema de un host externo.
+El modo de tema predeterminado es `themeAurora`, porque el runtime standalone no depende de ningún tema externo.
 
 ## `Providers/AuroraMprisController.qml`
 
@@ -76,7 +76,7 @@ Responsabilidades:
 - ejecutar controles MPRIS;
 - mantener `AuroraState`.
 
-No debe importar `qs.services`, `qs.modules.common` ni ningún módulo específico de End-4/ii.
+No debe importar módulos específicos del host ni servicios externos a la API pública de Aurora.
 
 ## `Providers/AuroraAudioProvider.qml`
 
