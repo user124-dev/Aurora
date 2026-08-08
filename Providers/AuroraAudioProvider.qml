@@ -12,10 +12,6 @@
  * Feeds AuroraState.spectrumLevels from cava. MPRIS only carries
  * track metadata and transport controls, never audio samples, so
  * the spectrum needs a source of its own - this is it.
- *
- * Requires the `cava` binary. If it isn't installed, the process
- * simply fails to start and spectrumLevels stays empty - Spectrum.qml
- * is expected to fall back to an idle animation in that case.
  */
 
 pragma Singleton
@@ -26,21 +22,13 @@ import Quickshell.Io
 import "../Core"
 
 Singleton {
-
     id: provider
 
-    // Resolved relative to this file, over to Assets/cava.
     readonly property string configPath:
         Qt.resolvedUrl("../Assets/cava/raw_output_config.txt").toString().replace("file://", "")
 
     property bool initialized: false
     property bool availabilityWarningLogged: false
-
-    // Set once the first time cava's bar count doesn't match
-    // AuroraConfig.bars, so the mismatch gets logged once instead of
-    // on every packet (cava's own framerate=60 config would otherwise
-    // spam this). See DECISIONS.md -> "cava config duplicado a
-    // proposito" for why this isn't read from the config file itself.
     property bool barsMismatchWarned: false
 
     function initialize() {
@@ -54,7 +42,6 @@ Singleton {
     Process {
         id: cava
 
-        // Only burns CPU while something is actually playing.
         running: AuroraState.playbackState === "Playing"
         command: ["cava", "-p", provider.configPath]
 
@@ -89,11 +76,20 @@ Singleton {
                 AuroraState.spectrumLevel =
                     levels.reduce((sum, v) => sum + v, 0) / levels.length
                 AuroraState.audioAvailable = true
+
+                // A successful frame proves that cava is available. This
+                // prevents a previous failed start from suppressing a later
+                // useful diagnostic forever.
+                provider.availabilityWarningLogged = false
             }
         }
 
         onExited: (exitCode, exitStatus) => {
-            if (exitCode !== 0 && !provider.availabilityWarningLogged) {
+            // When playback stops Quickshell terminates cava intentionally.
+            // SIGTERM is therefore a normal lifecycle event, not a failure.
+            const intentionallyStopped = exitCode === 15
+
+            if (exitCode !== 0 && !intentionallyStopped && !provider.availabilityWarningLogged) {
                 console.log("[Aurora] cava is unavailable (exit code", exitCode + ")")
                 provider.availabilityWarningLogged = true
             }
