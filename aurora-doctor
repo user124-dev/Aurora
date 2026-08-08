@@ -33,7 +33,13 @@ ok() { printf '\033[1;32m[ OK ]\033[0m %s\n' "$*"; }
 warn() { WARNINGS=$((WARNINGS + 1)); printf '\033[1;33m[WARN]\033[0m %s\n' "$*"; }
 fail() { ERRORS=$((ERRORS + 1)); printf '\033[1;31m[FAIL]\033[0m %s\n' "$*"; }
 section() { printf '\n\033[1;35m%s\033[0m\n%s\n' "$1" '────────────────────────────────────────────'; }
-require_file() { [[ -f "$ROOT_DIR/$1" ]] && ok "$1" || fail "Missing file: $1"; }
+require_file() {
+    if [[ -f "$ROOT_DIR/$1" ]]; then
+        ok "$1"
+    else
+        fail "Missing file: $1"
+    fi
+}
 
 version_of() {
     "$1" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1
@@ -76,7 +82,11 @@ while IFS= read -r file; do
         HOST_IMPORTS=true
     fi
 done < <(find "$ROOT_DIR/Core" "$ROOT_DIR/Components" "$ROOT_DIR/Providers" -type f -name '*.qml' -print)
-$HOST_IMPORTS || ok "Core, Components and Providers do not import qs.* host modules"
+if $HOST_IMPORTS; then
+    :
+else
+    ok "Core, Components and Providers do not import qs.* host modules"
+fi
 
 if grep -q 'Quickshell.Services.Mpris' "$ROOT_DIR/Providers/AuroraMprisController.qml"; then
     ok "MPRIS uses Quickshell's official service API"
@@ -94,7 +104,9 @@ if [[ -n "$QS_CMD" ]]; then
     if [[ -n "$QS_VERSION" ]]; then
         printf 'Detected: %s %s\n' "$QS_CMD" "$QS_VERSION"
         if version_at_least "$QS_VERSION" "0.2.0"; then ok "Quickshell version is supported (>= 0.2.0)"; else fail "Quickshell $QS_VERSION is too old; Aurora requires >= 0.2.0"; fi
-    else warn "Quickshell version could not be parsed"; fi
+    else
+        warn "Quickshell version could not be parsed"
+    fi
 fi
 
 section "Media"
@@ -107,9 +119,21 @@ if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then ok "Wayland session detected"; elif [[ 
 for wm in Hyprland sway i3; do if pgrep -x "$wm" >/dev/null 2>&1; then ok "Detected compositor/window manager: $wm"; fi; done
 
 section "Installer"
-[[ -x "$ROOT_DIR/install.sh" ]] && ok "install.sh is executable" || fail "install.sh is not executable"
+if [[ -x "$ROOT_DIR/install.sh" ]]; then
+    ok "install.sh is executable"
+else
+    fail "install.sh is not executable"
+fi
 if bash -n "$ROOT_DIR/install.sh"; then ok "install.sh syntax is valid"; else fail "install.sh has shell syntax errors"; fi
-if command -v shellcheck >/dev/null 2>&1; then shellcheck "$ROOT_DIR/install.sh" "$ROOT_DIR/aurora-doctor" && ok "Shell scripts pass shellcheck" || fail "Shellcheck reported errors"; else warn "shellcheck not installed; shell lint skipped"; fi
+if command -v shellcheck >/dev/null 2>&1; then
+    if shellcheck "$ROOT_DIR/install.sh" "$ROOT_DIR/aurora-doctor"; then
+        ok "Shell scripts pass shellcheck"
+    else
+        fail "Shellcheck reported errors"
+    fi
+else
+    warn "shellcheck not installed; shell lint skipped"
+fi
 
 section "Plugins"
 PLUGIN_BASE="${XDG_CONFIG_HOME:-${HOME}/.config}/aurora/plugins"
@@ -117,12 +141,16 @@ if [[ -d "$PLUGIN_BASE" ]]; then ok "External plugin directory: $PLUGIN_BASE"; e
 
 section "Blueprint"
 for file in Blueprint/README.md Blueprint/ARCHITECTURE.md Blueprint/INSTALL.md Blueprint/API.md Blueprint/DECISIONS.md; do require_file "$file"; done
+OBSOLETE=false
 for file in Blueprint/README.md Blueprint/ARCHITECTURE.md Blueprint/INSTALL.md Blueprint/API.md; do
     if grep -Eqs 'ii/modules/ii/mediaControls|qs\.services|qs\.modules\.common' "$ROOT_DIR/$file"; then
-        fail "Obsolete End-4-specific reference in $file"
+        fail "Obsolete host-specific reference in $file"
+        OBSOLETE=true
     fi
 done
-if ! grep -Eqs 'ii/modules/ii/mediaControls|qs\.services|qs\.modules\.common' "$ROOT_DIR/Blueprint/README.md" "$ROOT_DIR/Blueprint/ARCHITECTURE.md" "$ROOT_DIR/Blueprint/INSTALL.md" "$ROOT_DIR/Blueprint/API.md"; then
+if $OBSOLETE; then
+    :
+else
     ok "Current Blueprint documents match standalone architecture"
 fi
 
