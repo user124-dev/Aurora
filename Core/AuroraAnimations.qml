@@ -18,12 +18,13 @@
 pragma Singleton
 
 import QtQuick
-import Quickshell
 
-// Quickshell's Singleton is the canonical root type for pragma Singleton.
-// Using it here prevents the singleton from resolving as an incomplete
-// QtObject when imported from another Aurora directory.
-Singleton {
+// Keep this singleton as a plain QtObject. The motion-token component is
+// intentionally host-independent; importing Quickshell.Singleton here can
+// make the local-directory singleton resolve as an incomplete type on some
+// Quickshell/Qt combinations, which surfaces at runtime as
+// "Unable to assign [undefined] to QQmlEasing::Type".
+QtObject {
     // Default for size/position changes - the widget resizing
     // between Compact/Hover/Expanded, progress bar fills.
     readonly property int standard: Easing.OutCubic
