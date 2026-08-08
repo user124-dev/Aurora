@@ -35,15 +35,20 @@ Default installation:
 
 After installation:
   qs -c Aurora
-  ./aurora-doctor
+  aurora-doctor
 EOF
 }
 
 while (($# > 0)); do
     case "$1" in
         --target)
-            [[ $# -ge 2 ]] || { error "--target requiere una ruta."; exit 2; }
-            TARGET_DIR="$2"; shift 2 ;;
+            if [[ $# -lt 2 ]]; then
+                error "--target requiere una ruta."
+                exit 2
+            fi
+            TARGET_DIR="$2"
+            shift 2
+            ;;
         --no-backup) BACKUP_ENABLED=false; shift ;;
         --dry-run) DRY_RUN=true; shift ;;
         -h|--help) usage; exit 0 ;;
@@ -55,7 +60,10 @@ DEST_DIR="${TARGET_DIR%/}"
 VERSION_FILE="$SCRIPT_DIR/VERSION"
 
 require_file() {
-    [[ -f "$SCRIPT_DIR/$1" ]] || { error "Archivo requerido faltante: $1"; exit 1; }
+    if [[ ! -f "$SCRIPT_DIR/$1" ]]; then
+        error "Archivo requerido faltante: $1"
+        exit 1
+    fi
 }
 
 for file in \
@@ -107,7 +115,7 @@ package_manager() {
 install_package() {
     local manager="$1" package="$2"
     local sudo_cmd=()
-    [[ $EUID -eq 0 ]] || sudo_cmd=(sudo)
+    if [[ $EUID -ne 0 ]]; then sudo_cmd=(sudo); fi
 
     case "$manager" in
         pacman) "${sudo_cmd[@]}" pacman -S --needed "$package" ;;
@@ -243,20 +251,27 @@ mkdir -p "${CONFIG_BASE%/}/aurora/plugins"
 mkdir -p "$BIN_DIR"
 ln -sfn "$DEST_DIR/aurora-doctor" "$BIN_DIR/aurora-doctor"
 
-# Validate the installed payload before declaring success.
-if ! "$DEST_DIR/aurora-doctor" --installed >/dev/null 2>&1; then
+# Validate the installed payload before declaring success. Keep the diagnostic
+# visible so installation failures are actionable instead of opaque.
+info "Validando instalación..."
+if "$DEST_DIR/aurora-doctor" --installed; then
+    success "Validación completada."
+else
     error "Fallo de validación después de la instalación."
+    error "Aurora no quedó activado; ejecutando rollback..."
     rm -rf -- "$DEST_DIR"
     if [[ -n "$BACKUP_DIR" && -d "$BACKUP_DIR" ]]; then
         mv -- "$BACKUP_DIR" "$DEST_DIR"
-        warning "Instalación anterior restaurada."
+        success "Instalación anterior restaurada."
+    else
+        warning "No existía una instalación anterior; Aurora fue retirado."
     fi
     exit 1
 fi
 
 success "Aurora $AURORA_VERSION instalado/actualizado correctamente."
 info "Ejecutar: qs -c Aurora"
-info "Diagnóstico: ./aurora-doctor"
+info "Diagnóstico: aurora-doctor"
 info "Diagnóstico instalado: $BIN_DIR/aurora-doctor"
 
 if [[ ":${PATH:-}:" != *":$BIN_DIR:"* ]]; then
