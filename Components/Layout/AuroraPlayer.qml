@@ -12,18 +12,7 @@
  * Root layout. Boots the Providers, tracks hover/tap/host-sizing
  * state, and hands the actual content off to whichever of
  * AuroraCompactView / AuroraHoverView / AuroraExpandedView fits
- * that state - this file no longer lays out Cover/Info/Spectrum/
- * Controls itself, it only decides which of those three to load.
- * Sizes itself one of two ways:
- *
- *   - hostWidth/hostHeight set  -> use exactly that (the host
- *     environment is telling Aurora how much space it gets, e.g. a
- *     bar with a big media slot). Content-wise this behaves like
- *     AuroraHoverView with the spectrum turned on, since a host slot
- *     has no separate "expanded" gesture of its own.
- *   - left unset                -> manage size itself via
- *     hover/tap between Compact/Hover/Expanded, like a normal
- *     self-contained widget.
+ * that state.
  */
 
 import QtQuick
@@ -34,12 +23,12 @@ import "../../Core"
 Item {
     id: root
 
-    // Set these from outside to let the host dictate size instead
-    // (e.g. hostWidth: Appearance.sizes.mediaControlsWidth). Leave
-    // both at 0 and Aurora sizes itself via hover/expand.
     property real hostWidth: 0
     property real hostHeight: 0
     readonly property bool hostSized: hostWidth > 0 && hostHeight > 0
+
+    property bool hovered: false
+    property bool expanded: false
 
     Component.onCompleted: {
         AuroraPlayerProvider.initialize()
@@ -49,15 +38,6 @@ Item {
         AuroraState.widgetMode = mode
     }
 
-    property bool hovered: false
-    property bool expanded: false
-
-    // Keeps AuroraState.widgetMode as the single source of truth,
-    // even though the interaction itself lives in local booleans.
-    // hostSized checked first, same priority the Loader below uses -
-    // otherwise a host-embedded widget would report widgetMode as
-    // compact while AuroraHoverView (with spectrum on) is what's
-    // actually on screen.
     readonly property int mode:
         hostSized
             ? AuroraConfig.hover
@@ -77,9 +57,6 @@ Item {
                 ? AuroraConfig.hoverWidth
                 : AuroraConfig.compactWidth
 
-    // Now uses expandedHeight for real - AuroraExpandedView gives
-    // that height an actual layout to fill, instead of AuroraPlayer
-    // falling back to hoverHeight for both hover and expanded.
     implicitHeight: hostSized
         ? hostHeight
         : expanded
@@ -104,6 +81,7 @@ Item {
 
     AuroraBackground {
         anchors.fill: parent
+        z: -1
     }
 
     HoverHandler {
@@ -120,6 +98,7 @@ Item {
     }
 
     TapHandler {
+        acceptedButtons: Qt.LeftButton
         onTapped: root.expanded = !root.expanded
     }
 
@@ -135,15 +114,10 @@ Item {
         onTriggered: root.hovered = false
     }
 
-    // ------------------------------------------------------------
-    // MARK: Content
-    // One of these three is alive at a time - the Loader tears down
-    // whichever view isn't current instead of keeping all three (and
-    // their Cover/Info/Spectrum/Controls instances) around at once.
-    // ------------------------------------------------------------
-
     Loader {
+        id: viewLoader
         anchors.fill: parent
+        asynchronous: true
         sourceComponent: {
             if (root.hostSized) return hoverWithSpectrum
             if (root.expanded) return expandedView
