@@ -50,19 +50,30 @@ Si falta y el usuario decide no instalarlo, Aurora continúa funcionando con sus
 ./aurora-doctor
 ```
 
-Doctor es read-only y comprueba:
+Doctor es **read-only** y ahora audita tanto el entorno como el repositorio completo. Comprueba:
 
 - entrypoint standalone;
-- estructura de Aurora;
+- estructura y archivos principales de Aurora;
+- inventario del repositorio y superficies QML/documentales;
+- referencias locales rotas en Markdown;
+- referencias a archivos runtime que ya no existen;
+- referencias heredadas de End-4/ii y otras APIs obsoletas conocidas;
+- imports host-specific en el runtime;
+- declaraciones de singleton de Core;
+- marcadores `TODO`, `FIXME`, `DEPRECATED` y `OBSOLETE`;
+- archivos temporales o backups que puedan ocultar implementaciones duplicadas;
 - versión de Quickshell;
 - uso de `Quickshell.Services.Mpris`;
 - Cava;
 - D-Bus/MPRIS;
 - sesión Wayland/X11;
 - compositor detectado;
-- imports host-specific;
-- instalador;
+- instalador y ShellCheck;
+- estado Git local;
+- formato de `VERSION`;
 - coherencia del Blueprint.
+
+Los hallazgos de mantenimiento intencional, como `TODO` en documentación o investigación, se reportan como advertencias y no bloquean automáticamente Aurora. Las referencias obsoletas dentro del runtime y las referencias rotas sí pueden bloquear el diagnóstico.
 
 ## Arquitectura
 
