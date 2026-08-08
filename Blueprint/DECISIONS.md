@@ -383,7 +383,6 @@ de trabajo distinto (integrarse con cada fuente por separado, no solo
 lógica del Provider) y la mayoría de fuentes de referencia no la exponen
 de todas formas. Ver `ROADMAP.md` v0.4 y `Ideas.md`.
 
-
 ## Abierto / Pendiente
 
 - **Theme no es reactivo en modo AuroraConfig.themeSystem.** `AuroraThemeProvider.resolve()`
