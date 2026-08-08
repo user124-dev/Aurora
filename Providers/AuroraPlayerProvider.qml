@@ -3,7 +3,7 @@
  *
  * The provider talks to AuroraMprisController, which wraps Quickshell's
  * official MPRIS service. This keeps the rest of Aurora independent from
- * End-4/ii and other host-specific service trees.
+ * host-specific service trees.
  */
 
 pragma Singleton
@@ -238,11 +238,11 @@ Singleton {
 
     Connections {
         target: AuroraMprisController
-        function onTrackChanged() {
+        function onAuroraTrackChanged() {
             provider.syncPlayer()
             provider.syncPlayerList()
         }
-        function onActivePlayerChanged() {
+        function onAuroraActivePlayerChanged() {
             provider.syncPlayer()
             provider.syncPlayerList()
         }
