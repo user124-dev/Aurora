@@ -1,3 +1,4 @@
+
 # Aurora
 
 Aurora es un widget multimedia para **Quickshell** con identidad propia. Combina MPRIS para reproducción y metadata con Cava para el espectro opcional, y presenta tres modos visuales: Compact, Hover y Expanded.
@@ -74,6 +75,24 @@ Doctor es **read-only** y ahora audita tanto el entorno como el repositorio comp
 - coherencia del Blueprint.
 
 Los hallazgos de mantenimiento intencional, como `TODO` en documentación o investigación, se reportan como advertencias y no bloquean automáticamente Aurora. Las referencias obsoletas dentro del runtime y las referencias rotas sí pueden bloquear el diagnóstico.
+
+> **Nota sobre falsos positivos conocidos:** dos categorías de warning son
+> esperadas y no requieren acción.
+>
+> 1. **`qs.modules.common` / `qs.services` en `Blueprint/` y `Research/`** —
+>    el check de referencias obsoletas es intencionalmente amplio: marca la
+>    cadena en *cualquier* archivo de texto, incluida documentación que
+>    menciona esos módulos en tiempo pasado (para explicar que se
+>    eliminaron) o material de referencia en `Research/` que nunca formó
+>    parte del runtime. Solo es un `[FAIL]` bloqueante si aparece dentro de
+>    `Core/`, `Components/`, `Providers/`, `Themes/` o `shell.qml` - ver la
+>    lógica en `aurora-doctor` → sección "Repository audit".
+> 2. **Marcadores de mantenimiento (`TODO`/`DEPRECATED`/etc.)** — el check
+>    usa `grep -i`, así que también captura la palabra española "todo"
+>    ("hoy **todo** vive junto...") y menciones de "obsolete"/"deprecated"
+>    dentro de documentación que describe qué revisa el propio doctor. Antes
+>    de asumir que hay trabajo pendiente, abre el archivo señalado y
+>    confirma si es un marcador real en mayúsculas.
 
 ## Arquitectura
 
