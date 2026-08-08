@@ -40,17 +40,19 @@ Singleton {
 
         if (nextSignature !== controller.lastSignature) {
             controller.lastSignature = nextSignature
-            controller.trackChanged()
+            controller.auroraTrackChanged()
         }
 
         if (nextIdentity !== controller.lastActiveIdentity) {
             controller.lastActiveIdentity = nextIdentity
-            controller.activePlayerChanged()
+            controller.auroraActivePlayerChanged()
         }
     }
 
-    signal trackChanged()
-    signal activePlayerChanged()
+    // These names intentionally avoid colliding with Qt/QML's automatic
+    // property change signals (activePlayerChanged, playersChanged, etc.).
+    signal auroraTrackChanged()
+    signal auroraActivePlayerChanged()
 
     Timer {
         interval: 250
