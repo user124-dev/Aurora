@@ -1,71 +1,72 @@
 # Arquitectura de Aurora
 
-Aurora es un widget de Quickshell con tres modos: Compact, Hover y
-Expanded. La arquitectura separa estado, configuración, integración
-externa y UI.
+Aurora es un widget multimedia para Quickshell con tres modos de UI: Compact, Hover y Expanded. El proyecto se distribuye como una configuración standalone, pero el widget sigue siendo reutilizable dentro de otras configuraciones.
 
 ## Estructura
 
 ```text
 Aurora/
-├── Assets/       # Recursos estáticos
-├── Blueprint/    # Arquitectura, decisiones, API y documentación
-├── Components/   # UI pura
-│   ├── Layout/   # Compact / Hover / Expanded / raíz
-│   └── Media/    # UI especializada de medios
-├── Core/         # Estado, configuración, tema y registro de plugins
-├── Providers/    # Integración con MPRIS, cava y el tema del host
-├── Research/     # Referencias de estudio; no se cargan en runtime
-├── Examples/     # Plantillas; no se cargan automáticamente
-├── Themes/       # Paletas incluidas
-├── Tools/        # Herramientas de desarrollo
-└── install.sh    # Instalador
+├── shell.qml                 # Entry point standalone
+├── Assets/                   # Recursos estáticos
+├── Blueprint/                # Especificación y decisiones
+├── Components/               # UI
+│   ├── Layout/               # Root + Compact / Hover / Expanded
+│   └── Media/                # UI especializada
+├── Core/                     # Estado, configuración, tema y plugins
+├── Providers/                # MPRIS, Cava y adaptadores externos
+├── Research/                 # Material de estudio; no es runtime
+├── Examples/                 # Ejemplos; no se cargan automáticamente
+├── Themes/                   # Temas incluidos
+└── install.sh                # Instalador / actualizador
 ```
+
+## Runtime standalone
+
+```text
+qs -c Aurora
+      │
+      ▼
+shell.qml
+      │
+      ▼
+PanelWindow
+      │
+      ▼
+AuroraPlayer
+      │
+      ├── CompactView
+      ├── HoverView
+      └── ExpandedView
+```
+
+El entrypoint solo crea la ventana y carga el widget. No contiene lógica multimedia.
 
 ## Dirección de dependencias
 
 ```text
-                    ┌───────────────┐
-                    │   Providers   │
-                    │ MPRIS / cava  │
-                    │  host theme   │
-                    └───────┬───────┘
-                            │
-                            ▼
-                    ┌───────────────┐
-                    │  AuroraState  │
-                    │   singleton   │
-                    └───────┬───────┘
-                            │
-                            ▼
-                    ┌───────────────┐
-                    │  Components   │
-                    │      UI       │
-                    └───────────────┘
-
-Plugins ──► AuroraPluginRegistry ──► AuroraState.plugins
+Quickshell APIs / estándares
+        │
+        ├── MPRIS ──► AuroraMprisController
+        │                    │
+        ├── Cava  ──► AuroraAudioProvider
+        │                    │
+        └── Theme adapter ──┤
+                             ▼
+                       AuroraState
+                             │
+                             ▼
+                        Components
 ```
 
-Los componentes no importan Providers ni servicios del host.
-
-Los Providers pueden escribir en `AuroraState`; los componentes solo leen
-estado y emiten acciones a través de las señales de `AuroraState`.
+Los componentes no importan Providers ni APIs específicas de un host.
 
 ## Core
 
 ### `AuroraState`
 
-Es la única fuente de verdad del estado de runtime:
+Única fuente de verdad del estado de runtime: reproductor seleccionado, metadata, timeline, reproducción, espectro, fuentes MPRIS y datos de plugins.
 
-- reproductor seleccionado;
-- metadata;
-- timeline;
-- estado de reproducción;
-- espectro;
-- fuentes MPRIS;
-- datos namespaced de plugins.
-
-Las acciones de UI son señales:
+Las acciones públicas son señales:
 
 ```qml
 AuroraState.togglePlaying()
@@ -77,100 +78,70 @@ AuroraState.cycleRepeat()
 AuroraState.selectPlayer(identity)
 ```
 
-`AuroraPlayerProvider` escucha esas señales y ejecuta la operación contra
-el reproductor MPRIS seleccionado.
+`AuroraPlayerProvider` escucha esas señales y ejecuta las operaciones.
 
 ### `AuroraConfig`
 
-Contiene constantes y opciones estáticas:
-
-- tamaños;
-- espaciados;
-- animaciones;
-- límites del espectro;
-- tolerancias de deduplicación;
-- fuentes;
-- tema.
-
-Los componentes no deben introducir valores de layout o comportamiento
-ajustable directamente.
+Contiene tamaños, espaciados, animaciones, límites del espectro, tolerancias MPRIS, selección de fuentes y opciones de tema. El tema standalone predeterminado es el incluido en Aurora.
 
 ### `AuroraTheme`
 
-Es el contrato visual. Los componentes leen colores y tipografía desde
-este singleton.
-
-Solo `AuroraThemeProvider` escribe sus valores.
+Contrato visual consumido por los componentes. `AuroraThemeProvider` es el único escritor.
 
 ## Providers
 
+### `AuroraMprisController`
+
+Adaptador pequeño sobre `Quickshell.Services.Mpris`. Expone una interfaz estable para Aurora y evita dependencias de `qs.services` o cualquier árbol de End-4/ii.
+
 ### `AuroraPlayerProvider`
 
-Único punto de contacto con MPRIS.
-
-Responsabilidades:
-
-- sincronizar metadata;
-- sincronizar posición;
-- seleccionar fuente;
-- deduplicar entradas que representan el mismo audio;
-- ejecutar controles de reproducción;
-- persistir la última fuente cuando está habilitado.
+Único punto de contacto de Aurora con el adaptador MPRIS. Sincroniza metadata, timeline, selección, deduplicación y controles.
 
 ### `AuroraAudioProvider`
 
-Ejecuta cava y transforma sus muestras en:
-
-```qml
-AuroraState.spectrumLevels
-```
-
-La normalización utiliza `AuroraConfig.spectrumMaxRange`.
+Ejecuta Cava cuando está disponible y transforma sus muestras en `AuroraState.spectrumLevels`. Cava es opcional.
 
 ### `AuroraThemeProvider`
 
-Es el único archivo que conoce el API de tema del host. Actualmente
-mapea `Appearance` del host de referencia.
+En standalone usa `Themes/Default/Theme.qml`. Los adaptadores de temas de hosts externos podrán implementarse posteriormente sin modificar Core ni Components.
+
+## Compatibilidad
+
+Aurora no intenta implementar un backend independiente para cada compositor. La estrategia es apoyarse en las APIs generales de Quickshell y mantener los adaptadores específicos separados.
+
+```text
+                 Aurora Core
+                     │
+                 Quickshell
+          ┌──────────┼──────────┐
+          ▼          ▼          ▼
+        MPRIS     PipeWire    Window API
+                                  │
+                    ┌─────────────┼─────────────┐
+                    ▼             ▼             ▼
+                Hyprland       Sway           i3
+                 adapter       adapter        adapter
+```
+
+La funcionalidad multimedia básica no debe depender de Hyprland, Sway o i3.
 
 ## Plugins
 
-`AuroraPluginRegistry` descubre automáticamente:
+`AuroraPluginRegistry` descubre plugins externos en:
 
 ```text
-~/.config/aurora/plugins/<id>/plugin.qml
+$XDG_CONFIG_HOME/aurora/plugins/<id>/plugin.qml
 ```
 
-El entrypoint recibe por propiedad:
+Los plugins permanecen fuera del payload de Aurora para que una actualización no los sobrescriba.
 
-```qml
-auroraState
-auroraConfig
-auroraRegistry
-```
+## Actualizaciones
 
-Los datos del plugin solo viven en:
+`install.sh` administra el payload completo de Aurora. Si detecta una instalación previa, crea un backup, instala el payload nuevo y valida el resultado. Un fallo restaura la versión anterior.
 
-```qml
-AuroraState.plugins.<id>
-```
-
-No se importan plugins desde `Providers/`.
-
-## Layout
-
-`Components/Layout/AuroraPlayer.qml` decide qué vista cargar:
-
-```text
-Compact ──► AuroraCompactView
-Hover   ──► AuroraHoverView
-Expanded ─► AuroraExpandedView
-```
-
-`Loader` mantiene activa solamente la vista actual.
+Esto permite reparar instalaciones con archivos faltantes y actualizar archivos desfasados sin pedir al usuario una secuencia manual de comandos.
 
 ## Herramientas
 
-`aurora-doctor` es externo al runtime del widget. Sirve para revisar el
-repositorio antes de integrarlo o distribuirlo.
-
-No es una dependencia de Aurora.
+`aurora-doctor` es una herramienta de diagnóstico read-only. Comprueba la instalación, Quickshell, MPRIS, Cava, entorno gráfico, aislamiento del host y documentación.
