@@ -13,6 +13,7 @@ La experiencia objetivo es de pocos pasos:
 
 ```bash
 git clone https://github.com/user124-dev/Aurora.git
+chmod +x install.sh aurora-doctor
 cd Aurora
 ./install.sh
 ```
@@ -30,7 +31,13 @@ qs -c Aurora
 ```
 
 `install.sh` detecta dependencias, pregunta antes de instalar dependencias clave u opcionales, actualiza instalaciones existentes, restaura archivos faltantes y realiza rollback si una actualización falla.
-
+##actualizacion
+para actualizar aurora solo tienes que seguir estos pasos
+```bash
+cd ~/Downloads/Aurora   # ajusta si tu repo está en otra ruta
+git pull
+./install.sh
+```
 ## Dependencias
 
 ### Clave
