@@ -85,12 +85,14 @@ Singleton {
         }
 
         onExited: (exitCode, exitStatus) => {
-            // When playback stops Quickshell terminates cava intentionally.
-            // SIGTERM is therefore a normal lifecycle event, not a failure.
-            const intentionallyStopped = exitCode === 15
+            // Quickshell terminates cava intentionally when playback stops.
+            // Depending on the Qt/Quickshell binding, the numeric value can
+            // arrive as an int-like QVariant, so normalize it before testing.
+            const code = Number(exitCode)
+            const intentionallyStopped = code === 15 || AuroraState.playbackState !== "Playing"
 
-            if (exitCode !== 0 && !intentionallyStopped && !provider.availabilityWarningLogged) {
-                console.log("[Aurora] cava is unavailable (exit code", exitCode + ")")
+            if (!intentionallyStopped && code !== 0 && !provider.availabilityWarningLogged) {
+                console.log("[Aurora] cava is unavailable (exit code", code + ")")
                 provider.availabilityWarningLogged = true
             }
 
