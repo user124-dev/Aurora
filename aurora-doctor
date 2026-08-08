@@ -67,12 +67,22 @@ for file in \
     Core/AuroraAnimations.qml Core/AuroraPluginRegistry.qml \
     Providers/AuroraMprisController.qml Providers/AuroraPlayerProvider.qml \
     Providers/AuroraAudioProvider.qml Providers/AuroraThemeProvider.qml \
-    Components/Layout/AuroraPlayer.qml Components/Layout/AuroraCompactView.qml \
-    Components/Layout/AuroraHoverView.qml Components/Layout/AuroraExpandedView.qml \
-    Components/AuroraControls.qml Components/AuroraCover.qml Components/AuroraInfo.qml \
-    Components/AuroraSpectrum.qml; do
+    Components/Layout/AuroraPlayer.qml Components/Layout/AuroraBackground.qml \
+    Components/Layout/AuroraCompactView.qml Components/Layout/AuroraHoverView.qml \
+    Components/Layout/AuroraExpandedView.qml Components/AuroraControls.qml \
+    Components/AuroraCover.qml Components/AuroraInfo.qml Components/AuroraSpectrum.qml \
+    Components/AuroraPlayerSwitcher.qml Components/Media/AuroraBrowserBadge.qml \
+    Assets/cava/raw_output_config.txt; do
     require_file "$file"
 done
+
+# Catch the class of runtime warning that previously escaped the doctor:
+# a pragma Singleton must use Quickshell's Singleton root type.
+if grep -q '^pragma Singleton' "$ROOT_DIR/Core/AuroraAnimations.qml" && grep -q '^Singleton {' "$ROOT_DIR/Core/AuroraAnimations.qml"; then
+    ok "AuroraAnimations uses Quickshell's Singleton root"
+else
+    fail "AuroraAnimations is not declared as a valid Quickshell singleton"
+fi
 
 section "Host isolation"
 HOST_IMPORTS=false
