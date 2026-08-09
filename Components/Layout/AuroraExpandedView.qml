@@ -11,7 +11,8 @@
  * Description:
  * Expanded presentation with player switching, track information,
  * spectrum, controls, and a non-blocking warning when Aurora has
- * actively loaded an EasyEffects preset.
+ * actively loaded an EasyEffects preset. Interactive child regions
+ * are exposed to AuroraPlayer so their clicks do not collapse the view.
  */
 
 import QtQuick
@@ -24,12 +25,15 @@ Item {
     id: root
     anchors.fill: parent
 
+    readonly property bool interactiveHovered: switcher.hovered || controls.hovered
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: AuroraConfig.expandedPadding
         spacing: AuroraConfig.expandedSpacing
 
         AuroraPlayerSwitcher {
+            id: switcher
             Layout.fillWidth: true
         }
 
@@ -82,6 +86,7 @@ Item {
         }
 
         AuroraControls {
+            id: controls
             Layout.alignment: Qt.AlignHCenter
         }
     }
