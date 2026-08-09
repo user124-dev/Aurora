@@ -80,9 +80,7 @@ Singleton {
             result.push({
                 id: source.id,
                 name: source.name ?? "",
-                description: source.description ?? "",
-                application: "",
-                mediaName: ""
+                description: source.description ?? ""
             })
         }
 
@@ -129,7 +127,13 @@ Singleton {
     }
 
     Connections {
-        target: provider.defaultSink?.audio
+        target: outputLinks
+
+        function onLinkGroupsChanged() { provider.syncState() }
+    }
+
+    Connections {
+        target: provider.boundSink?.audio
 
         function onVolumeChanged() { provider.syncState() }
         function onMutedChanged() { provider.syncState() }
