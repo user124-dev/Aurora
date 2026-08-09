@@ -1,11 +1,9 @@
 # Cava config for Aurora's spectrum visualizer (Components/AuroraSpectrum.qml).
 
 # `bars` must match Core/AuroraConfig.qml -> bars (currently 48).
-
 # `ascii_max_range` must match the normalization in
 # Providers/AuroraAudioProvider.qml (currently 1000).
 
-#
 # Aurora keeps Cava's input autodetection so the visualizer follows the
 # system output on PipeWire/PulseAudio without hard-coding a device.
 # `autosens` keeps quiet passages responsive while backing off when a
@@ -16,6 +14,7 @@
 bars = 48
 framerate = 60
 autosens = 1
+sensitivity = 100
 
 [output]
 method = raw
@@ -24,3 +23,10 @@ data_format = ascii
 ascii_max_range = 1000
 bar_delimiter = 59
 frame_delimiter = 10
+
+[smoothing]
+# Moderate smoothing keeps the spectrum readable without making it laggy.
+# Monstercat smoothing gives the bars a musical falloff between frames.
+monstercat = 1
+waves = 0
+noise_reduction = 0.45
