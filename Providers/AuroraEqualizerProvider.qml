@@ -10,18 +10,8 @@
  *
  * Description:
  * Level A equalizer support: preset discovery and loading via the
- * EasyEffects CLI (`easyeffects -l <preset>`). EasyEffects has no
- * documented D-Bus API for live per-band control (see DECISIONS.md),
- * so Level A deliberately stops at "pick a preset someone already
- * tuned in EasyEffects itself" rather than exposing individual bands -
- * that's Level B, exploratory, gated on a stable GSettings key path
- * that doesn't exist yet.
- *
- * Philosophy:
- * EasyEffects is optional, exactly like cava. If it isn't installed,
- * AuroraState.equalizerAvailable stays false and Aurora's playback,
- * metadata and spectrum features are entirely unaffected - same
- * graceful-degradation rule AuroraAudioProvider already follows.
+ * EasyEffects CLI. EasyEffects is optional and Aurora does not claim
+ * ownership of its global effects graph yet.
  */
 
 pragma Singleton
@@ -34,12 +24,6 @@ import "../Core"
 Singleton {
     id: provider
 
-    // EasyEffects stores presets as flat `.json` files under its own
-    // config folder - there is no CLI flag to list them, so this reads
-    // the same directory EasyEffects itself reads from. Output presets
-    // (playback) are used, not input presets (microphone capture) -
-    // Aurora is a playback widget, so input presets are out of scope,
-    // not an oversight.
     readonly property string presetDirectory: {
         const xdgConfigHome = Quickshell.env("XDG_CONFIG_HOME")
         const home = Quickshell.env("HOME") || ""
@@ -57,6 +41,9 @@ Singleton {
             return
 
         provider.initialized = true
+        AuroraState.effectsBackend = ""
+        AuroraState.effectsManaged = false
+        AuroraState.effectsWarning = false
         detection.running = true
         console.log("[Aurora] EqualizerProvider initialized")
     }
@@ -75,20 +62,27 @@ Singleton {
         loader.running = true
     }
 
-    // Detects whether the `easyeffects` executable exists at all before
-    // touching the filesystem or claiming the feature is available -
-    // same order of operations AuroraAudioProvider uses for cava.
+    // Detection only proves that EasyEffects is installed. It does not mean
+    // Aurora is currently changing system audio. The warning is enabled only
+    // after Aurora actually requests a preset load.
     Process {
         id: detection
         command: ["bash", "-c", "command -v easyeffects"]
         onExited: (exitCode, exitStatus) => {
-            const available = exitCode === 0
+            const available = Number(exitCode) === 0
             AuroraState.equalizerAvailable = available
 
-            if (available)
+            if (available) {
+                AuroraState.effectsBackend = "EasyEffects"
                 provider.refreshPresets()
-            else
+            } else {
+                AuroraState.equalizerPresets = []
+                AuroraState.currentPreset = ""
+                AuroraState.effectsBackend = ""
+                AuroraState.effectsManaged = false
+                AuroraState.effectsWarning = false
                 console.log("[Aurora] EasyEffects not found - equalizer unavailable")
+            }
         }
     }
 
@@ -101,8 +95,6 @@ Singleton {
             "-name", "*.json",
             "-printf", "%f\n"
         ]
-
-        property string buffer: ""
 
         stdout: SplitParser {
             splitMarker: "\n"
@@ -121,10 +113,7 @@ Singleton {
         }
 
         onExited: (exitCode, exitStatus) => {
-            // `find` returns 1 when the directory doesn't exist yet - a
-            // fresh EasyEffects install with zero saved presets, not an
-            // Aurora failure.
-            if (exitCode !== 0 && exitCode !== 1)
+            if (Number(exitCode) !== 0 && Number(exitCode) !== 1)
                 console.log("[Aurora] Preset discovery finished with code", exitCode)
         }
     }
@@ -134,8 +123,11 @@ Singleton {
         property string presetName: ""
         command: ["easyeffects", "-l", loader.presetName]
         onExited: (exitCode, exitStatus) => {
-            if (exitCode === 0) {
+            if (Number(exitCode) === 0) {
                 AuroraState.currentPreset = loader.presetName
+                AuroraState.effectsManaged = true
+                AuroraState.effectsWarning = true
+                console.log("[Aurora] EasyEffects preset loaded by Aurora:", loader.presetName)
             } else {
                 console.log("[Aurora] Failed to load EasyEffects preset:",
                     loader.presetName, "(exit code", exitCode + ")")
