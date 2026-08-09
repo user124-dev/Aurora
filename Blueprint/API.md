@@ -14,9 +14,12 @@ Fuente única del estado de runtime:
 - `coverArt`
 - `duration`, `position`, `progress`
 - `canSeek`
-- `spectrumLevel`, `spectrumLevels`
+- `spectrumLevel`, `spectrumLevels`, `audioAvailable`
 - `widgetMode`
 - `equalizerAvailable`, `equalizerPresets`, `currentPreset`
+- `plugins`
+
+`duration` y `position` son valores reales para conservar precisión temporal. `progress` es de solo lectura y queda limitado al rango `0..1`.
 
 Las acciones públicas son señales:
 
@@ -36,6 +39,17 @@ Los componentes llaman estas acciones. `AuroraPlayerProvider` las escucha median
 ## `Core/AuroraConfig.qml`
 
 Configuración estática de Aurora: tamaños, espaciados, animaciones, espectro, deduplicación y fuentes.
+
+Propiedades del espectro relevantes:
+
+| Propiedad | Default | Función |
+|---|---:|---|
+| `bars` | `48` | Número de barras del visualizador. |
+| `spectrumMaxRange` | `1000` | Rango máximo esperado de la salida ASCII de Cava. |
+| `spectrumGain` | `1.35` | Ganancia posterior aplicada por Aurora. |
+| `spectrumGamma` | `0.82` | Curva perceptual para hacer visibles niveles bajos. |
+| `spectrumNoiseFloor` | `0.015` | Umbral para reducir ruido residual. |
+| `spectrumAnimation` | `70 ms` | Duración de la animación de altura de las barras. |
 
 Propiedades de fuentes:
 
@@ -62,10 +76,12 @@ y expone a Aurora una interfaz pequeña y estable:
 
 - `players`
 - `activePlayer`
-- `trackChanged()`
-- `activePlayerChanged()`
+- `auroraTrackChanged()`
+- `auroraActivePlayerChanged()`
 
-La selección automática toma un reproductor que esté reproduciendo cuando existe; si no, usa el primer reproductor disponible. Esta política puede evolucionar sin cambiar los componentes.
+Los nombres `auroraTrackChanged` y `auroraActivePlayerChanged` son intencionales para evitar colisiones con las señales automáticas de cambio de propiedades de QML.
+
+La selección automática toma un reproductor que esté reproduciendo cuando existe; si no, usa el primer reproductor disponible. La política de selección puede evolucionar sin cambiar los componentes.
 
 ## `Providers/AuroraPlayerProvider.qml`
 
@@ -82,7 +98,11 @@ No debe importar módulos específicos del host ni servicios externos a la API p
 
 ## `Providers/AuroraAudioProvider.qml`
 
-Usa `cava` como fuente opcional del espectro. Si Cava no está instalado o no puede ejecutarse, Aurora conserva el widget multimedia y deja el espectro en su fallback visual.
+Usa `cava` como fuente opcional del espectro. Cava entrega muestras mediante raw output; Aurora las normaliza a valores `0..1` antes de escribir `AuroraState.spectrumLevels`.
+
+La configuración de Cava utiliza 48 barras a 60 FPS y `autosens = 1` para conservar respuesta en pasajes silenciosos y reducir sensibilidad cuando aparecen picos sostenidos. La curva perceptual posterior se controla desde `AuroraConfig`.
+
+Si Cava no está instalado o no puede ejecutarse, Aurora conserva el widget multimedia y deja el espectro en su fallback visual.
 
 ## `Providers/AuroraThemeProvider.qml`
 
