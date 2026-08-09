@@ -42,12 +42,32 @@ Singleton {
         AuroraState.repeatMode = "None"
     }
 
-    function isSameTrack(a, b) {
-        if (a.trackTitle && b.trackTitle)
-            return a.trackTitle.includes(b.trackTitle) || b.trackTitle.includes(a.trackTitle)
+    function normalized(value) {
+        return String(value ?? "").trim().toLowerCase()
+    }
 
-        return Math.abs((a.position ?? 0) - (b.position ?? 0)) <= AuroraConfig.duplicatePositionTolerance &&
-               Math.abs((a.length ?? 0) - (b.length ?? 0)) <= AuroraConfig.duplicateLengthTolerance
+    function isSameTrack(a, b) {
+        const titleA = normalized(a?.trackTitle)
+        const titleB = normalized(b?.trackTitle)
+        const artistA = normalized(a?.trackArtist)
+        const artistB = normalized(b?.trackArtist)
+        const albumA = normalized(a?.trackAlbum)
+        const albumB = normalized(b?.trackAlbum)
+
+        // Prefer strong metadata matching. The previous title-only heuristic
+        // could incorrectly merge unrelated songs with the same title.
+        if (titleA && titleB) {
+            const sameTitle = titleA === titleB || titleA.includes(titleB) || titleB.includes(titleA)
+            const sameArtist = !artistA || !artistB || artistA === artistB || artistA.includes(artistB) || artistB.includes(artistA)
+            const sameAlbum = !albumA || !albumB || albumA === albumB || albumA.includes(albumB) || albumB.includes(albumA)
+            return sameTitle && sameArtist && sameAlbum
+        }
+
+        // Metadata-poor browser players can still be recognized when their
+        // position and duration are close enough to represent the same stream.
+        return Math.abs((a?.position ?? 0) - (b?.position ?? 0)) <= AuroraConfig.duplicatePositionTolerance &&
+               Math.abs((a?.length ?? 0) - (b?.length ?? 0)) <= AuroraConfig.duplicateLengthTolerance &&
+               (a?.length ?? 0) > 0 && (b?.length ?? 0) > 0
     }
 
     function computeMeaningfulPlayers(players) {
@@ -159,7 +179,7 @@ Singleton {
         AuroraState.coverArt = player.trackArtUrl ?? ""
         AuroraState.duration = player.length ?? 0
         AuroraState.position = player.position ?? 0
-        AuroraState.canSeek = player.canSeek ?? false
+        AuroraState.canSeek = !!player.canSeek && !!player.positionSupported
         AuroraState.shuffleEnabled = player.shuffleSupported ? player.shuffle : false
         AuroraState.repeatMode = player.loopSupported ? String(player.loopState) : "None"
 
@@ -168,7 +188,9 @@ Singleton {
     }
 
     function togglePlaying() {
-        resolveActivePlayer()?.togglePlaying()
+        const player = resolveActivePlayer()
+        if (player?.canTogglePlaying)
+            player.togglePlaying()
     }
 
     function next() {
@@ -185,8 +207,8 @@ Singleton {
 
     function seek(fraction) {
         const player = resolveActivePlayer()
-        if (player && player.canSeek && player.length > 0)
-            player.position = fraction * player.length
+        if (player && player.canSeek && player.positionSupported && player.lengthSupported && player.length > 0)
+            player.position = Math.max(0, Math.min(1, fraction)) * player.length
     }
 
     function toggleShuffle() {
