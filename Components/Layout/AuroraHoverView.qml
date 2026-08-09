@@ -9,14 +9,9 @@
  * Version     : 0.1.0-dev
  *
  * Description:
- * Cover, Info and Controls in a single row - the widget's resting
- * "something is playing" state, shown on hover or whenever the host
- * gives Aurora a fixed slot (hostSized). AuroraBrowserBadge sits next
- * to Info and renders at zero size unless a browser-detecting plugin
- * is loaded and active. Spectrum is opt-in via showSpectrum: hostSized
- * widgets get it (there's no separate Expanded gesture available to a
- * host-embedded widget), the floating hover popup doesn't - that's
- * what tapping into AuroraExpandedView is for instead.
+ * Cover, Info and Controls in a single row. The view exposes
+ * `interactiveHovered` so AuroraPlayer can keep clicks on transport
+ * controls separate from the widget-area expand gesture.
  */
 
 import QtQuick
@@ -30,6 +25,7 @@ Item {
     anchors.fill: parent
 
     property bool showSpectrum: false
+    readonly property bool interactiveHovered: controls.hovered
 
     RowLayout {
         anchors.fill: parent
@@ -57,6 +53,7 @@ Item {
         }
 
         AuroraControls {
+            id: controls
             Layout.alignment: Qt.AlignVCenter
         }
     }
