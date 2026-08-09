@@ -68,9 +68,18 @@ Singleton {
                     provider.barsMismatchWarned = true
                 }
 
-                const levels = values.map(v =>
-                    Math.max(0, Math.min(1, v / AuroraConfig.spectrumMaxRange))
-                )
+                // Keep cava's 0..ascii_max_range contract, then apply a
+                // light perceptual curve so quieter musical details become
+                // visible without simply making every bar hit the ceiling.
+                const noiseFloor = Math.max(0, Math.min(0.99, AuroraConfig.spectrumNoiseFloor))
+                const gain = Math.max(0, AuroraConfig.spectrumGain)
+                const gamma = Math.max(0.1, AuroraConfig.spectrumGamma)
+
+                const levels = values.map(v => {
+                    const normalized = Math.max(0, Math.min(1, v / AuroraConfig.spectrumMaxRange))
+                    const lifted = Math.max(0, (normalized - noiseFloor) / (1 - noiseFloor))
+                    return Math.max(0, Math.min(1, Math.pow(lifted, gamma) * gain))
+                })
 
                 AuroraState.spectrumLevels = levels
                 AuroraState.spectrumLevel =
