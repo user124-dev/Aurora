@@ -12,16 +12,11 @@
  * Shuffle / previous / play-pause / next / repeat. Everything here
  * calls AuroraState (.previous() / .togglePlaying() / .next() /
  * .toggleShuffle() / .cycleRepeat()) - never touches a Provider
- * directly. Shuffle and repeat tint themselves from
- * AuroraState.shuffleEnabled / .repeatMode, and quietly do nothing
- * if the active player doesn't support them (see
- * AuroraPlayerProvider - both are optional in MPRIS).
+ * directly. The parent exposes `hovered` so AuroraPlayer can distinguish
+ * a control click from a widget-area click.
  *
  * Icons are hand-drawn with QtQuick.Shapes and plain Text (core Qt)
  * instead of a host icon font, so this file has zero host imports.
- * Swap these for real icon assets under Assets/Icons/ whenever
- * that's ready - this was the fastest path to something that
- * actually renders.
  */
 
 import QtQuick
@@ -31,7 +26,17 @@ import "../Core"
 
 RowLayout {
     id: root
+
+    // Consumed by AuroraPlayer to keep transport clicks from changing
+    // Compact / Hover / Expanded mode.
+    property bool hovered: false
+
     spacing: AuroraConfig.controlsRowSpacing
+
+    HoverHandler {
+        id: controlsHover
+        onHoveredChanged: root.hovered = controlsHover.hovered
+    }
 
     // ------------------------------------------------------------
     // Shuffle
@@ -66,9 +71,7 @@ RowLayout {
     }
 
     // ------------------------------------------------------------
-    // Previous / Play-Pause / Next - its own tighter RowLayout so
-    // this cluster reads as one group, distinct from the looser
-    // gap around Shuffle/Repeat.
+    // Previous / Play-Pause / Next
     // ------------------------------------------------------------
     RowLayout {
         spacing: AuroraConfig.controlsButtonSpacing
@@ -120,8 +123,6 @@ RowLayout {
             implicitWidth: AuroraConfig.playButtonSize
             implicitHeight: AuroraConfig.playButtonSize
             radius: width / 2
-            // Primary hover factor is a named configuration token,
-            // keeping the visual decision out of the component.
             readonly property color playHoverColor: Qt.rgba(
                 AuroraTheme.colorPrimary.r * AuroraConfig.playHoverFactor,
                 AuroraTheme.colorPrimary.g * AuroraConfig.playHoverFactor,
@@ -209,8 +210,7 @@ RowLayout {
     }
 
     // ------------------------------------------------------------
-    // Repeat - small "1" badge distinguishes repeat-one from
-    // repeat-all without needing a second icon.
+    // Repeat
     // ------------------------------------------------------------
     Rectangle {
         implicitWidth: AuroraConfig.secondaryButtonSize
