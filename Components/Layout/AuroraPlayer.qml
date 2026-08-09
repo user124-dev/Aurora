@@ -9,10 +9,11 @@
  * Version     : 0.1.0-dev
  *
  * Description:
- * Root layout. Boots the Providers, tracks hover/tap/host-sizing
- * state, and hands the actual content off to whichever of
- * AuroraCompactView / AuroraHoverView / AuroraExpandedView fits
- * that state.
+ * Root layout. AuroraState.widgetMode is the single source of truth
+ * for Compact / Hover / Expanded. Pointer hover drives Compact ↔ Hover;
+ * widget-area taps drive Hover ↔ Expanded. Child interactive controls
+ * explicitly opt out of the mode-changing tap so media actions never
+ * collapse or expand the widget accidentally.
  */
 
 import QtQuick
@@ -27,8 +28,10 @@ Item {
     property real hostHeight: 0
     readonly property bool hostSized: hostWidth > 0 && hostHeight > 0
 
-    property bool hovered: false
-    property bool expanded: false
+    // The loaded view exposes whether the pointer is over an interactive
+    // child such as transport controls or the player switcher. The root
+    // tap must not change widget mode while those controls are targeted.
+    readonly property bool interactiveHovered: viewLoader.item?.interactiveHovered ?? false
 
     Component.onCompleted: {
         AuroraPlayerProvider.initialize()
@@ -37,33 +40,28 @@ Item {
         AuroraThemeProvider.initialize()
         AuroraEqualizerProvider.initialize()
         AuroraPluginRegistry.discoverPlugins(root)
-        AuroraState.widgetMode = mode
+
+        if (AuroraState.widgetMode < AuroraConfig.compact ||
+            AuroraState.widgetMode > AuroraConfig.expanded)
+            AuroraState.widgetMode = AuroraConfig.compact
     }
 
     readonly property int mode:
-        hostSized
-            ? AuroraConfig.hover
-            : expanded
-                ? AuroraConfig.expanded
-                : hovered
-                    ? AuroraConfig.hover
-                    : AuroraConfig.compact
-
-    onModeChanged: AuroraState.widgetMode = mode
+        hostSized ? AuroraConfig.hover : AuroraState.widgetMode
 
     implicitWidth: hostSized
         ? hostWidth
-        : expanded
+        : mode === AuroraConfig.expanded
             ? AuroraConfig.expandedWidth
-            : hovered
+            : mode === AuroraConfig.hover
                 ? AuroraConfig.hoverWidth
                 : AuroraConfig.compactWidth
 
     implicitHeight: hostSized
         ? hostHeight
-        : expanded
+        : mode === AuroraConfig.expanded
             ? AuroraConfig.expandedHeight
-            : hovered
+            : mode === AuroraConfig.hover
                 ? AuroraConfig.hoverHeight
                 : AuroraConfig.compactHeight
 
@@ -92,28 +90,45 @@ Item {
             if (hoverHandler.hovered) {
                 hideTimer.stop()
                 showTimer.restart()
-            } else {
-                showTimer.stop()
-                hideTimer.restart()
+                return
             }
+
+            showTimer.stop()
+            hideTimer.restart()
         }
     }
 
+    // This handler belongs to the widget surface, but child controls are
+    // allowed to mark themselves as interactive. Checking that state before
+    // changing the mode prevents a play/next/previous/switcher tap from
+    // reaching the widget's expand/collapse behavior.
     TapHandler {
         acceptedButtons: Qt.LeftButton
-        onTapped: root.expanded = !root.expanded
+        enabled: !root.hostSized && !root.interactiveHovered
+        onTapped: {
+            if (AuroraState.widgetMode === AuroraConfig.hover)
+                AuroraState.widgetMode = AuroraConfig.expanded
+            else if (AuroraState.widgetMode === AuroraConfig.expanded)
+                AuroraState.widgetMode = AuroraConfig.hover
+        }
     }
 
     Timer {
         id: showTimer
         interval: AuroraConfig.hoverDelay
-        onTriggered: root.hovered = true
+        onTriggered: {
+            if (AuroraState.widgetMode === AuroraConfig.compact)
+                AuroraState.widgetMode = AuroraConfig.hover
+        }
     }
 
     Timer {
         id: hideTimer
         interval: AuroraConfig.hideDelay
-        onTriggered: root.hovered = false
+        onTriggered: {
+            if (AuroraState.widgetMode === AuroraConfig.hover)
+                AuroraState.widgetMode = AuroraConfig.compact
+        }
     }
 
     Loader {
@@ -122,8 +137,8 @@ Item {
         asynchronous: true
         sourceComponent: {
             if (root.hostSized) return hoverWithSpectrum
-            if (root.expanded) return expandedView
-            if (root.hovered) return hoverView
+            if (AuroraState.widgetMode === AuroraConfig.expanded) return expandedView
+            if (AuroraState.widgetMode === AuroraConfig.hover) return hoverView
             return compactView
         }
     }
