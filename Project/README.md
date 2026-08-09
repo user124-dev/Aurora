@@ -16,4 +16,4 @@ Aquí se mantienen la identidad, filosofía, propósito y backlog de ideas de Au
 
 `Project/` contiene material conceptual, de identidad y planificación no normativa.
 
-Cuando una idea de `Project/IDEAS.md` se convierte en una decisión técnica o una funcionalidad implementada, su parte normativa debe pasar a `Blueprint/DECISIONS.md`, `Blueprint/API.md` u otro documento técnico correspondiente. El texto conceptual puede permanecer aquí como historial.
+Cuando una idea de `Project/IDEAS.md` se convierte en una decisión técnica o una funcionalidad implementada, su parte normativa debe pasar a `Blueprint/DECISIONS_CURRENT.md`, `Blueprint/API.md`, `Blueprint/PROVIDERS.md` u otro documento técnico correspondiente. El texto conceptual puede permanecer aquí como historial.
