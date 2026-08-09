@@ -8,7 +8,7 @@ Los Providers globales que necesitan hijos QML usan `pragma Singleton` con `Sing
 
 Los componentes visuales no importan Providers ni APIs privadas de hosts. `Components/Layout/AuroraPlayer.qml` es la única excepción controlada: inicializa los Providers como bootstrap del widget.
 
-La API pública de Quickshell (`Quickshell`, `Quickshell.Services.Mpris`, `Quickshell.Io`, etc.) es válida. Las dependencias privadas de configuraciones externas como `qs.services` o `qs.modules.common` no forman parte del runtime de Aurora.
+La API pública de Quickshell (`Quickshell`, `Quickshell.Services.Mpris`, `Quickshell.Services.Pipewire`, `Quickshell.Io`, etc.) es válida. Las dependencias privadas de configuraciones externas como `qs.services` o `qs.modules.common` no forman parte del runtime de Aurora.
 
 ## 2. MPRIS
 
@@ -19,7 +19,7 @@ La API pública de Quickshell (`Quickshell`, `Quickshell.Services.Mpris`, `Quick
 - `auroraTrackChanged()`
 - `auroraActivePlayerChanged()`
 
-`AuroraPlayerProvider` es la única capa que convierte esos objetos en estado plano para los componentes.
+La detección de cambios puede usar identidad D-Bus e identificadores de pista disponibles en `MprisPlayer`. `AuroraPlayerProvider` es la única capa que convierte esos objetos en estado plano para los componentes.
 
 ## 3. AuroraState
 
@@ -48,10 +48,27 @@ Los Providers correspondientes escuchan esas señales mediante `Connections`.
 - Los comandos actúan sobre `resolveActivePlayer()`.
 - Una fuente desaparecida limpia la selección manual.
 - Las entradas `Offline` son sintéticas y no son seleccionables.
-- La selección utiliza actualmente `MPRIS identity`, no un supuesto ID único de instancia.
+- La selección visible utiliza actualmente la identidad humana MPRIS; la identidad D-Bus se usa internamente para mejorar detección de cambios.
 - `sourcePriority`, `autoSwitchEnabled` y `rememberLastSource` son opcionales y están desactivados por defecto.
+- Spotify, MPV, VLC y navegadores se consideran primero fuentes MPRIS, no Providers centrales separados.
 
-## 5. Espectro
+## 5. PipeWire
+
+`AuroraPipewireProvider` usa `Quickshell.Services.Pipewire` como integración primaria con el audio del sistema.
+
+Publica en `AuroraState`:
+
+- `pipewireAvailable`
+- `pipewireReady`
+- salida predeterminada
+- volumen y mute de la salida predeterminada
+- streams conectados a la salida
+
+`PwObjectTracker` se utiliza cuando una propiedad de un objeto PipeWire requiere binding. `PwNodeLinkTracker` se utiliza para observar conexiones del sink.
+
+El provider es observacional en esta fase. Aurora no cambia routing ni volumen hasta definir ownership, permisos y recuperación segura.
+
+## 6. Espectro
 
 Cava es la fuente actual del espectro.
 
@@ -63,7 +80,9 @@ Cava → parseo → normalización → noise floor → gamma → gain → clamp 
 
 La sensibilidad está controlada por configuración (`spectrumMaxRange`, `spectrumNoiseFloor`, `spectrumGamma`, `spectrumGain`). La ausencia de Cava no rompe el widget.
 
-## 6. Tema
+Quickshell 0.3.0 añade detección de picos de audio en PipeWire, pero Aurora mantiene Cava como fuente mínima del espectro mientras su baseline sea Quickshell 0.2.x.
+
+## 7. Tema
 
 `AuroraThemeProvider` usa actualmente `Themes/Default/Theme.qml` en standalone.
 
@@ -71,17 +90,21 @@ La sensibilidad está controlada por configuración (`spectrumMaxRange`, `spectr
 
 No se declara soporte de un adapter de compositor o shell hasta que exista implementación y prueba verificable.
 
-## 7. Plugins
+## 8. Plugins
 
 Los plugins externos viven fuera del payload de Aurora y se descubren mediante `AuroraPluginRegistry`.
 
 Un plugin solo escribe dentro de `AuroraState.plugins[<id>]` y recibe las superficies de Aurora mediante propiedades inyectadas. No debe depender de rutas relativas hacia la instalación.
 
-## 8. EqualizerProvider
+## 9. EqualizerProvider y ownership de efectos
 
-`AuroraEqualizerProvider` integra EasyEffects de forma opcional y actualmente se limita a presets de salida. La edición de bandas en vivo permanece fuera del contrato hasta disponer de una interfaz estable y verificable.
+`AuroraEqualizerProvider` integra EasyEffects de forma opcional y actualmente se limita a presets de salida.
 
-## 9. Views
+Cuando Aurora carga activamente un preset, `AuroraState.effectsManaged` y `AuroraState.effectsWarning` indican que Aurora está interviniendo en el procesamiento del sistema. La UI debe mostrar una advertencia no bloqueante.
+
+La edición de bandas en vivo y el snapshot/restore automático permanecen fuera del contrato hasta disponer de una interfaz estable para identificar el estado original y detectar cambios externos. Aurora nunca debe resetear ciegamente EasyEffects al cerrar.
+
+## 10. Views
 
 `AuroraPlayer.qml` selecciona una de tres Views:
 
@@ -91,13 +114,13 @@ Un plugin solo escribe dentro de `AuroraState.plugins[<id>]` y recibe las superf
 
 El root no debe recuperar la lógica visual monolítica anterior.
 
-## 10. Compatibilidad futura
+## 11. Compatibilidad futura
 
 La compatibilidad con otros compositores, shells o ecosistemas es una meta arquitectónica, no una lista de integraciones existentes.
 
 Los adapters futuros deben permanecer en la frontera de infraestructura y no introducir dependencias del host en `Core` ni en los componentes visuales.
 
-## 11. Documentación
+## 12. Documentación
 
 `Blueprint/` es exclusivamente técnico.
 
