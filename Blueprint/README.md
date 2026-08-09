@@ -12,7 +12,8 @@ Blueprint no contiene identidad, filosofía ni backlog conceptual. Ese material 
 - [`PROVIDERS.md`](./PROVIDERS.md) — diseño y responsabilidades de Providers.
 - [`PLUGINS.md`](./PLUGINS.md) — sistema de plugins externos.
 - [`INSTALL.md`](./INSTALL.md) — instalación, actualización, dependencias y rollback.
-- [`DECISIONS.md`](./DECISIONS.md) — decisiones arquitectónicas e historial técnico.
+- [`DECISIONS_CURRENT.md`](./DECISIONS_CURRENT.md) — decisiones arquitectónicas vigentes.
+- [`DECISIONS.md`](./DECISIONS.md) — historial técnico detallado de decisiones anteriores.
 - [`CONVENTIONS.md`](./CONVENTIONS.md) — nomenclatura y organización del código.
 - [`STYLEGUIDE.md`](./STYLEGUIDE.md) — estilo QML.
 - [`THEMES.md`](./THEMES.md) — contrato y estructura de temas.
