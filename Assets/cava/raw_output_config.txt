@@ -1,14 +1,21 @@
 # Cava config for Aurora's spectrum visualizer (Components/AuroraSpectrum.qml).
+
 # `bars` must match Core/AuroraConfig.qml -> bars (currently 48).
+
 # `ascii_max_range` must match the normalization in
 # Providers/AuroraAudioProvider.qml (currently 1000).
+
 #
-# No [input] section on purpose - cava autodetects pulse/pipewire on
-# most systems. Add one here if it picks the wrong device.
+# Aurora keeps Cava's input autodetection so the visualizer follows the
+# system output on PipeWire/PulseAudio without hard-coding a device.
+# `autosens` keeps quiet passages responsive while backing off when a
+# track produces sustained peaks; AuroraAudioProvider applies the final
+# perceptual normalization after these raw values arrive.
 
 [general]
 bars = 48
 framerate = 60
+autosens = 1
 
 [output]
 method = raw
