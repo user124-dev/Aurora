@@ -1,62 +1,71 @@
 # Data flow
 
-The formal version of `Research/MEDIAFLOW.md` - that file is "ii"'s
-pattern as reference material. This is Aurora's own, as built.
+La versión formal del flujo de datos de Aurora. El material de `Research/` puede servir como referencia, pero el diagrama de este documento representa únicamente el runtime propio de Aurora.
 
 ```mermaid
 flowchart TD
-    MPRIS[MPRIS] --> PP[AuroraPlayerProvider]
+    MPRIS[Quickshell MPRIS API] --> MC[AuroraMprisController]
+    MC --> PP[AuroraPlayerProvider]
     CAVA[cava] --> AP[AuroraAudioProvider]
-    HOST[Host Appearance] --> TP[AuroraThemeProvider]
+    PALETTE[Themes/Default/Theme.qml] --> TP[AuroraThemeProvider]
 
     PP --> STATE[AuroraState]
     AP --> STATE
     TP --> THEME[AuroraTheme]
 
-    STATE --> COMP["AuroraCover / AuroraInfo /
-    AuroraControls / AuroraSpectrum"]
+    STATE --> COMP[Components]
     THEME --> COMP
     CONFIG[AuroraConfig] --> COMP
 
-    COMP -. calls actions .-> STATE
-    STATE -. forwards .-> PP
+    COMP -. actions .-> STATE
+    STATE -. action signals .-> PP
 
     STATE -. trackChanged / connectionChanged .-> LISTENERS[External listeners]
 ```
 
-## Reading it
+## Lectura del flujo
 
-**In (three independent lanes, one per Provider):**
-`AuroraPlayerProvider` reads MPRIS metadata and transport state,
-`AuroraAudioProvider` reads cava's spectrum output, `AuroraThemeProvider`
-reads either the host's `Appearance` or Aurora's own bundled palette.
-They never read each other and never share a lane - if one lane is
-unavailable (no cava, host has no MPRIS player active) the other two
-keep working normally.
+**MPRIS:** `AuroraMprisController` es el adaptador de infraestructura sobre la API oficial `Quickshell.Services.Mpris`. `AuroraPlayerProvider` consume esa interfaz, resuelve el reproductor seleccionado, deduplica fuentes cuando corresponde y escribe datos planos en `AuroraState`.
 
-**Rest (static, no lane):** `AuroraConfig` isn't written by anything -
-it's read the same way at startup and at runtime.
+**Audio:** `AuroraAudioProvider` ejecuta Cava cuando está disponible, procesa su salida y escribe `AuroraState.spectrumLevels`. Si Cava no está disponible o no hay muestras válidas, el estado puede quedar sin datos de espectro y `AuroraSpectrum` utiliza su fallback visual.
 
-**Out to components:** every visual component reads `AuroraState`,
-`AuroraTheme` and `AuroraConfig` directly. Nothing here is push-based;
-QML's property bindings mean a component just re-evaluates automatically
-when the value it's bound to changes.
+**Tema:** el runtime actual es standalone. `AuroraThemeProvider` carga `Themes/Default/Theme.qml` y escribe `AuroraTheme`. `themeSystem` existe como punto de extensión reservado; actualmente no conecta con un singleton de apariencia de un host.
 
-**Back up (actions):** `AuroraControls` and `AuroraInfo`'s scrubber don't
-call `AuroraPlayerProvider` - they call `AuroraState.togglePlaying()` /
-`.next()` / `.previous()` / `.seek()`, which forward. Same rule as
-reading data: components only ever talk to `AuroraState`.
+**Configuración:** `AuroraConfig` contiene configuración interna de comportamiento y diseño. Los componentes la leen directamente; no existe un Provider intermedio para configuración estática.
 
-**Out to the rest of the world:** `AuroraState.trackChanged()` and
-`.connectionChanged()` fire for anything outside Aurora that wants to
-react to it - a host bar showing a mini "now playing" elsewhere, for
-example - without that listener needing to diff individual property
-changes itself.
+**Componentes:** los componentes visuales leen `AuroraState`, `AuroraTheme` y `AuroraConfig`. No consumen directamente objetos MPRIS, procesos de Cava ni APIs de un host.
 
-## Why three Providers instead of one
+**Acciones:** los componentes emiten acciones mediante señales de `AuroraState`, por ejemplo `togglePlaying()`, `next()`, `previous()`, `seek()` y `selectPlayer()`. `AuroraPlayerProvider` escucha esas señales y actúa sobre el reproductor resuelto.
 
-Each is a single external dependency (MPRIS, cava, a host theme) that
-can fail or be missing independently, without the diagram or the code
-being different in shape. Losing cava shouldn't touch playback; losing
-MPRIS shouldn't touch theming. One Provider per lane keeps that true
-by construction rather than by discipline.
+**Eventos:** `AuroraState.trackChanged()` y `connectionChanged()` permiten que listeners externos reaccionen a cambios de alto nivel sin depender de la secuencia interna de propiedades.
+
+## Por qué existen Providers separados
+
+Cada Provider encapsula una frontera externa diferente:
+
+- MPRIS / reproductores multimedia.
+- Cava / datos de audio.
+- Fuente de tema standalone y futuros adapters de tema.
+- EasyEffects / presets de ecualizador.
+
+Una dependencia opcional puede desaparecer sin convertir su fallo en un fallo de toda la aplicación. La separación también evita que Components conozca detalles de infraestructura.
+
+## Regla de dirección
+
+```text
+External APIs / processes
+          ↓
+      Providers
+          ↓
+     AuroraState
+          ↓
+      Components
+```
+
+El flujo de acciones recorre el camino inverso mediante señales:
+
+```text
+Components → AuroraState signals → Providers → external service
+```
+
+`Core` no importa `Providers`. El bootstrap controlado de `AuroraPlayer` es el único punto que inicializa Providers al cargar el widget.
