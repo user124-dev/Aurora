@@ -9,16 +9,9 @@
  * Version     : 0.1.0-dev
  *
  * Description:
- * The tall card AuroraConfig.expandedWidth/expandedHeight (520x300)
- * were always sized for but never had a layout of their own -
- * "expanded" used to just mean "AuroraHoverView's row, plus
- * Spectrum, squeezed into the same 72px strip." This gives it real
- * room: an optional AuroraPlayerSwitcher up top (zero height unless
- * more than one MPRIS source is playing), Cover and Info below that,
- * Spectrum taking whatever height is left over (it's the one thing
- * Aurora's philosophy calls out as the actual point of the widget -
- * real-time, not decorative), and Controls anchoring the bottom,
- * centered.
+ * Expanded presentation with player switching, track information,
+ * spectrum, controls, and a non-blocking warning when Aurora has
+ * actively loaded an EasyEffects preset.
  */
 
 import QtQuick
@@ -56,6 +49,29 @@ Item {
 
             AuroraBrowserBadge {
                 Layout.alignment: Qt.AlignVCenter
+            }
+        }
+
+        Rectangle {
+            visible: AuroraState.effectsWarning
+            Layout.fillWidth: true
+            Layout.preferredHeight: visible ? 30 : 0
+            radius: height / 2
+            color: AuroraTheme.colorContainer
+            border.width: 1
+            border.color: AuroraTheme.colorPrimary
+            opacity: 0.92
+
+            Text {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                verticalAlignment: Text.AlignVCenter
+                text: "EasyEffects activo: Aurora está gestionando un preset de audio."
+                elide: Text.ElideRight
+                font.pixelSize: AuroraTheme.fontSizeSmall
+                font.family: AuroraTheme.fontFamily
+                color: AuroraTheme.colorOnBackground
             }
         }
 
