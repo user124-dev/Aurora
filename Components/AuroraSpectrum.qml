@@ -60,7 +60,7 @@ Item {
 
             Behavior on height {
                 NumberAnimation {
-                    duration: AuroraConfig.fastAnimation
+                    duration: AuroraConfig.spectrumAnimation
                     easing.type: AuroraAnimations.linear
                 }
             }
