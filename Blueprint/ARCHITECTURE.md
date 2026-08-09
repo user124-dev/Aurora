@@ -1,6 +1,6 @@
 # Arquitectura de Aurora
 
-Aurora es un widget multimedia para Quickshell con tres modos de UI: Compact, Hover y Expanded. El proyecto se distribuye como una configuración standalone, pero el widget sigue siendo reutilizable dentro de otras configuraciones.
+Aurora es un widget multimedia para Quickshell con tres modos de UI: Compact, Hover y Expanded. El proyecto se distribuye como una configuración standalone y el widget mantiene una arquitectura reutilizable dentro de otras configuraciones.
 
 ## Estructura
 
@@ -8,12 +8,13 @@ Aurora es un widget multimedia para Quickshell con tres modos de UI: Compact, Ho
 Aurora/
 ├── shell.qml                 # Entry point standalone
 ├── Assets/                   # Recursos estáticos
-├── Blueprint/                # Especificación y decisiones
+├── Blueprint/                # Especificación y decisiones técnicas
+├── Project/                  # Contexto no técnico: identidad, filosofía e ideas
 ├── Components/               # UI
 │   ├── Layout/               # Root + Compact / Hover / Expanded
 │   └── Media/                # UI especializada
 ├── Core/                     # Estado, configuración, tema y plugins
-├── Providers/                # MPRIS, Cava y adaptadores externos
+├── Providers/                # MPRIS, Cava, EasyEffects y adaptadores de infraestructura
 ├── Research/                 # Material de estudio; no es runtime
 ├── Examples/                 # Ejemplos; no se cargan automáticamente
 ├── Themes/                   # Temas incluidos
@@ -46,25 +47,23 @@ El entrypoint solo crea la ventana y carga el widget. No contiene lógica multim
 ```text
 Quickshell APIs / estándares
         │
-        ├── MPRIS ──► AuroraMprisController
-        │                    │
-        ├── Cava  ──► AuroraAudioProvider
-        │                    │
-        └── Theme adapter ──┤
-                             ▼
-                       AuroraState
-                             │
-                             ▼
-                        Components
+        ├── MPRIS ──► AuroraMprisController ──► AuroraPlayerProvider ──┐
+        │                                                               │
+        ├── Cava  ──► AuroraAudioProvider ─────────────────────────────┤
+        │                                                               ▼
+        └── Theme source ──► AuroraThemeProvider ──► AuroraTheme     AuroraState
+                                                                        │
+                                                                        ▼
+                                                                   Components
 ```
 
-Los componentes no importan Providers ni APIs específicas de un host.
+Los componentes visuales no importan Providers ni APIs específicas de un host. `AuroraPlayer.qml` es el único bootstrap controlado y puede inicializar los Providers al cargar el widget.
 
 ## Core
 
 ### `AuroraState`
 
-Única fuente de verdad del estado de runtime: reproductor seleccionado, metadata, timeline, reproducción, espectro, fuentes MPRIS y datos de plugins.
+Única fuente de verdad del estado de runtime: reproductor seleccionado, metadata, timeline, reproducción, espectro, fuentes MPRIS, equalizador y datos de plugins.
 
 Las acciones públicas son señales:
 
@@ -78,11 +77,11 @@ AuroraState.cycleRepeat()
 AuroraState.selectPlayer(identity)
 ```
 
-`AuroraPlayerProvider` escucha esas señales y ejecuta las operaciones.
+`AuroraPlayerProvider` escucha esas señales y ejecuta las operaciones sobre el reproductor resuelto.
 
 ### `AuroraConfig`
 
-Contiene tamaños, espaciados, animaciones, límites del espectro, tolerancias MPRIS, selección de fuentes y opciones de tema. El tema standalone predeterminado es el incluido en Aurora.
+Contiene tamaños, espaciados, animaciones, límites y parámetros de respuesta del espectro, tolerancias MPRIS, selección de fuentes y opciones de tema.
 
 ### `AuroraTheme`
 
@@ -92,7 +91,7 @@ Contrato visual consumido por los componentes. `AuroraThemeProvider` es el únic
 
 ### `AuroraMprisController`
 
-Adaptador pequeño sobre `Quickshell.Services.Mpris`. Expone una interfaz estable para Aurora y evita dependencias de módulos del host.
+Adaptador pequeño sobre `Quickshell.Services.Mpris`. Expone una interfaz estable para Aurora y evita dependencias de módulos privados de un host.
 
 ### `AuroraPlayerProvider`
 
@@ -100,31 +99,43 @@ Adaptador pequeño sobre `Quickshell.Services.Mpris`. Expone una interfaz establ
 
 ### `AuroraAudioProvider`
 
-Ejecuta Cava cuando está disponible y transforma sus muestras en `AuroraState.spectrumLevels`. Cava es opcional.
+Ejecuta Cava cuando está disponible y transforma sus muestras en `AuroraState.spectrumLevels`, incluyendo la normalización y el procesamiento de sensibilidad configurado.
 
 ### `AuroraThemeProvider`
 
-En standalone usa `Themes/Default/Theme.qml`. Los adaptadores de temas de hosts externos podrán implementarse posteriormente sin modificar Core ni Components.
+En standalone usa `Themes/Default/Theme.qml`. El modo de tema del sistema existe como punto de extensión, pero actualmente conserva la paleta Aurora y no importa una apariencia de host.
+
+### `AuroraEqualizerProvider`
+
+Integra de forma opcional presets de EasyEffects y publica su disponibilidad y lista de presets mediante `AuroraState`.
 
 ## Compatibilidad
 
-Aurora no intenta implementar un backend independiente para cada compositor. La estrategia es apoyarse en las APIs generales de Quickshell y mantener los adaptadores específicos separados.
+### Compatibilidad actual
+
+Aurora depende de las APIs generales de Quickshell y de estándares multimedia, principalmente MPRIS y la fuente de espectro Cava. El runtime actual está diseñado para funcionar como configuración standalone sin depender de End-4/ii.
+
+La funcionalidad multimedia no depende de una API privada de Hyprland, Sway o i3.
+
+### Compatibilidad futura
+
+La arquitectura deja espacio para adapters específicos de entorno cuando exista una integración real que aporte valor y pueda probarse. Estos adapters no deben convertirse en una dependencia del Core ni del contrato básico de reproducción.
+
+El siguiente esquema representa una **dirección futura**, no componentes implementados actualmente:
 
 ```text
-                 Aurora Core
-                     │
-                 Quickshell
-          ┌──────────┼──────────┐
-          ▼          ▼          ▼
-        MPRIS     PipeWire    Window API
-                                  │
-                    ┌─────────────┼─────────────┐
-                    ▼             ▼             ▼
-                Hyprland       Sway           i3
-                 adapter       adapter        adapter
+                    Aurora Core
+                        │
+                   Quickshell
+                        │
+             ┌──────────┼──────────┐
+             ▼          ▼          ▼
+           MPRIS      Audio      Window API
+                                    │
+                          futuros adapters
 ```
 
-La funcionalidad multimedia básica no debe depender de Hyprland, Sway o i3.
+No se debe documentar un adapter de Hyprland, Sway, i3 u otro compositor como existente hasta que exista código y una prueba verificable.
 
 ## Plugins
 
