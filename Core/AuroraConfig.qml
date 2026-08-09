@@ -62,6 +62,9 @@ QtObject {
     readonly property int spectrumHeight: 28
     readonly property int spectrumIdleInterval: 120
     readonly property real spectrumMaxRange: 1000
+    readonly property real spectrumGain: 1.35
+    readonly property real spectrumGamma: 0.82
+    readonly property real spectrumNoiseFloor: 0.015
     readonly property real spectrumMinBarWidth: 1
     readonly property real spectrumMinBarHeight: 2
     readonly property real spectrumIdleBaseLevel: 0.15
@@ -69,6 +72,7 @@ QtObject {
     readonly property real spectrumIdleWaveSpeed: 0.5
     readonly property real spectrumIdleRestLevel: 0.06
     readonly property real spectrumIdleOpacity: 0.3
+    readonly property int spectrumAnimation: 70
     readonly property int expandedSpectrumHeight: 90
 
     readonly property int controlButtonSize: 26
