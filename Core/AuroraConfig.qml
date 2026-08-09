@@ -30,10 +30,6 @@ QtObject {
     readonly property int compactHeight: 48
     readonly property int hoverWidth: 360
     readonly property int hoverHeight: 72
-
-    // Expanded needs enough vertical budget for switcher + cover/info +
-    // spectrum + controls without forcing the layout to overflow. The
-    // extra width also leaves a clean area for the future equalizer section.
     readonly property int expandedWidth: 620
     readonly property int expandedHeight: 380
 
@@ -56,6 +52,7 @@ QtObject {
     readonly property real backgroundPanelOpacity: 0.98
     readonly property int backgroundBorderWidth: 1
 
+    // Spectrum / Cava
     readonly property int bars: 48
     readonly property int barSpacing: 2
     readonly property real logoOpacity: 0.10
@@ -74,6 +71,14 @@ QtObject {
     readonly property real spectrumIdleOpacity: 0.3
     readonly property int spectrumAnimation: 70
     readonly property int expandedSpectrumHeight: 90
+
+    // Audio architecture. Quickshell's PipeWire service is the primary
+    // system-audio integration. Cava remains an optional sample source
+    // because Quickshell 0.2.x does not expose the v0.3 peak-detection API.
+    readonly property bool pipewireIntegrationEnabled: true
+    readonly property bool cavaIntegrationEnabled: true
+    readonly property bool effectsIntegrationEnabled: true
+    readonly property bool effectsRestoreEnabled: false
 
     readonly property int controlButtonSize: 26
     readonly property int playButtonSize: 32
@@ -125,9 +130,6 @@ QtObject {
     property bool developerMode: false
 
     // How deep AuroraEqualizerProvider scans EasyEffects' output-preset
-    // folder for `.json` files. 1 = top-level only, matching EasyEffects'
-    // own flat preset layout - not a filesystem limit, a deliberate
-    // decision so a preset that some other tool nests in a subfolder
-    // doesn't silently show up as if EasyEffects itself created it.
+    // folder for `.json` files.
     readonly property int equalizerPresetScanDepth: 1
 }
