@@ -11,20 +11,9 @@
  * Description:
  * A row of small chips, one per distinct MPRIS source Aurora
  * currently sees - AuroraState.players, already deduplicated by
- * AuroraPlayerProvider (a browser tab mirroring Spotify shows up as
- * one chip, not two, unless AuroraConfig.mergeDuplicatePlayers is
- * off). Tapping a chip calls AuroraState.selectPlayer() to show that
- * source instead of whatever MPRIS calls "active" - AuroraState is
- * still the only thing this component reads or calls, same as every
- * other visual component. Renders at zero height with zero or one
- * player, since there's nothing to switch between.
- *
- * Each chip also carries a small status dot - Playing/Paused read
- * straight from MPRIS, Offline is synthetic (a source listed in
- * AuroraConfig.sourcePriority that Aurora doesn't currently see on
- * the bus - see AuroraPlayerProvider.syncPlayerList()). Offline
- * chips are dimmed and don't respond to taps: there's no real player
- * behind them to switch to yet.
+ * AuroraPlayerProvider. Tapping a chip calls AuroraState.selectPlayer().
+ * `hovered` is exposed to AuroraPlayer so a chip click never doubles as
+ * an Expanded → Hover mode change.
  */
 
 import QtQuick
@@ -33,15 +22,22 @@ import "../Core"
 Item {
     id: root
 
+    property bool hovered: false
+
     visible: AuroraState.players.length > 1
     implicitHeight: visible ? AuroraConfig.switcherChipHeight : 0
+
+    HoverHandler {
+        id: switcherHover
+        onHoveredChanged: root.hovered = switcherHover.hovered
+    }
 
     function statusColor(status) {
         if (status === "Playing")
             return AuroraTheme.colorPrimary
         if (status === "Paused")
             return AuroraTheme.colorMuted
-        return "transparent" // Offline - outline only, drawn below
+        return "transparent"
     }
 
     Row {
