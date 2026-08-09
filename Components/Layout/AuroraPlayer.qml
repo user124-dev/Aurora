@@ -98,10 +98,9 @@ Item {
         }
     }
 
-    // This handler belongs to the widget surface, but child controls are
-    // allowed to mark themselves as interactive. Checking that state before
-    // changing the mode prevents a play/next/previous/switcher tap from
-    // reaching the widget's expand/collapse behavior.
+    // This handler belongs to the widget surface. Interactive child
+    // regions expose `interactiveHovered`, which disables this handler
+    // before a control click can trigger the mode transition as well.
     TapHandler {
         acceptedButtons: Qt.LeftButton
         enabled: !root.hostSized && !root.interactiveHovered
@@ -134,7 +133,11 @@ Item {
     Loader {
         id: viewLoader
         anchors.fill: parent
-        asynchronous: true
+        // These views are small and switching them asynchronously creates
+        // a visible blank frame in a compact widget. Synchronous loading is
+        // preferable here because the interaction contract values continuity
+        // over background component construction.
+        asynchronous: false
         sourceComponent: {
             if (root.hostSized) return hoverWithSpectrum
             if (AuroraState.widgetMode === AuroraConfig.expanded) return expandedView
