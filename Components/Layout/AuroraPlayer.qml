@@ -33,6 +33,7 @@ Item {
     Component.onCompleted: {
         AuroraPlayerProvider.initialize()
         AuroraAudioProvider.initialize()
+        AuroraPipewireProvider.initialize()
         AuroraThemeProvider.initialize()
         AuroraEqualizerProvider.initialize()
         AuroraPluginRegistry.discoverPlugins(root)
