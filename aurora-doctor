@@ -174,7 +174,7 @@ while IFS= read -r doc; do
                     STALE_RUNTIME_REFS=$((STALE_RUNTIME_REFS + 1)); fail "Documentation references missing runtime file: ${doc#"$ROOT_DIR"/} -> $ref"
                 fi ;;
         esac
-    done < <(grep -oE '`(Core|Components|Providers|Themes|Assets)/[^`[:space:]]+' "$doc" | sed 's/^`//' || true)
+      done < <(grep -oE "\`(Core|Components|Providers|Themes|Assets)/[^\`[:space:]]+" "$doc" | sed 's/^`//' || true)
 done < <(find "$ROOT_DIR/Blueprint" "$ROOT_DIR" -maxdepth 1 -type f -name '*.md' -print 2>/dev/null | sort -u)
 if (( STALE_RUNTIME_REFS == 0 )); then ok "Primary documentation contains no missing runtime file references"; fi
 
