@@ -12,8 +12,8 @@ La experiencia objetivo es de pocos pasos:
 
 ```bash
 git clone https://github.com/user124-dev/Aurora.git
-chmod +x install.sh aurora-doctor
 cd Aurora
+chmod +x install.sh aurora-doctor
 ./install.sh
 ```
 
