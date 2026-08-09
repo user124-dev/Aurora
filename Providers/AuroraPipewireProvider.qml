@@ -108,8 +108,11 @@ Singleton {
     readonly property var boundSink:
         provider.defaultSink && provider.defaultSink.ready ? provider.defaultSink : null
 
-    // Tracks links into the current default output. This is preferable to
-    // scanning every PipeWire node and guessing which application is active.
+    // Tracks links into the current default output. Quickshell exposes the
+    // tracked linkGroups as data, but PwNodeLinkTracker does not expose a
+    // linkGroupsChanged signal. Aurora therefore samples this small graph on
+    // a lightweight timer instead of connecting to a signal that does not
+    // exist in the official API.
     PwNodeLinkTracker {
         id: outputLinks
         node: provider.defaultSink
@@ -121,19 +124,24 @@ Singleton {
         function onReadyChanged() { provider.syncState() }
         function onDefaultAudioSinkChanged() { provider.syncState() }
         function onDefaultAudioSourceChanged() { provider.syncState() }
-        function onNodesChanged() { provider.syncState() }
-        function onLinksChanged() { provider.syncState() }
-        function onLinkGroupsChanged() { provider.syncState() }
     }
 
-    Connections {
-        target: outputLinks
-
-        function onLinkGroupsChanged() { provider.syncState() }
+    // PwNodeLinkTracker.linkGroups and Pipewire's ObjectModel collections do
+    // not provide the change signals used by the old implementation. A
+    // modest polling interval keeps Aurora reactive without depending on
+    // undocumented signals or shell commands.
+    Timer {
+        interval: 500
+        running: provider.initialized
+        repeat: true
+        onTriggered: provider.syncState()
     }
 
+    // `target` must resolve to a QObject or null. Avoid optional chaining here:
+    // when no sink exists it produces JavaScript `undefined`, which QML warns
+    // about while constructing Connections.
     Connections {
-        target: provider.boundSink?.audio
+        target: provider.boundSink ? provider.boundSink.audio : null
 
         function onVolumeChanged() { provider.syncState() }
         function onMutedChanged() { provider.syncState() }
