@@ -17,6 +17,8 @@ Blueprint no contiene identidad, filosofía ni backlog conceptual. Ese material 
 - [`CONVENTIONS.md`](./CONVENTIONS.md) — nomenclatura y organización del código.
 - [`STYLEGUIDE.md`](./STYLEGUIDE.md) — estilo QML.
 - [`THEMES.md`](./THEMES.md) — contrato y estructura de temas.
+- [`ROADMAP.md`](./ROADMAP.md) — planificación técnica por etapas.
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — reglas para contribuciones técnicas.
 - [`CHANGELOG.md`](./CHANGELOG.md) — historial técnico de cambios del proyecto.
 
 ## Contexto no técnico
