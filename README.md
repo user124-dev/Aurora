@@ -12,7 +12,6 @@ La experiencia objetivo es de pocos pasos:
 
 ```bash
 git clone https://github.com/user124-dev/Aurora.git
-mv Aurora ruta/carpeta/donde/guardes/aurora/   
 cd Aurora
 chmod +x install.sh aurora-doctor
 ./install.sh
