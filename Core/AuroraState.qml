@@ -49,24 +49,34 @@ QtObject {
     //
     property url coverArt: ""
 
-  	//
-  	// Timeline
-  	//
-  	property int duration: 0
-  	property int position: 0
-  
-  	// Calculated automatically from duration and position.
-  	readonly property real progress:
-    duration > 0 ? position / duration : 0
+    //
+    // Timeline
+    //
+    // MPRIS exposes duration/position as time values and they can contain
+    // fractions of a second. Keeping them as real values avoids visible
+    // truncation/jumps in the seek bar while playback is progressing.
+    //
+    property real duration: 0
+    property real position: 0
 
-  	property bool canSeek: false
+    // Calculated automatically from duration and position.
+    // Clamp the value so a provider hiccup can never make the UI render
+    // outside the valid 0..1 progress range.
+    readonly property real progress:
+        duration > 0 ? Math.max(0, Math.min(1, position / duration)) : 0
+
+    property bool canSeek: false
 
     //
     // Audio
     //
+    // `spectrumLevels` contains the normalized 0..1 bars supplied by
+    // AuroraAudioProvider. Components consume this data only; they never
+    // access cava directly.
+    //
     property real spectrumLevel: 0.0
     property list<real> spectrumLevels: []
-	property bool audioAvailable: false
+    property bool audioAvailable: false
 
     //
     // Playback modes
@@ -93,9 +103,9 @@ QtObject {
     // Plugins
     // Third-party code writes here, and only here - never into any
     // property above. Keyed by plugin name (AuroraState.plugins["foo"]),
-    // written via AuroraPluginRegistry so a plugin can never collide
-    // with what the three official Providers already own. See
-    // Core/AuroraPluginRegistry.qml and Blueprint/PLUGINS.md.
+    // written via AuroraPluginRegistry so a plugin can never collide with
+    // what the official Providers already own. See Core/AuroraPluginRegistry.qml
+    // and Blueprint/PLUGINS.md.
     //
     property var plugins: ({})
 
