@@ -4,7 +4,9 @@ Aurora es un widget multimedia para **Quickshell** con identidad propia. Combina
 
 ## Objetivo
 
-Aurora nació del estudio de arquitecturas de Quickshell y End-4. El objetivo es aprender de esos patrones sin depender de End-4/ii en el runtime: Aurora debe mantener su propia arquitectura, API y sistema de distribución.
+Aurora nació del estudio de arquitecturas de Quickshell y End-4. El objetivo es aprender de esos patrones sin depender de End-4/ii en el runtime: Aurora mantiene su propia arquitectura, API y sistema de distribución.
+
+El contexto conceptual del proyecto — identidad, filosofía y backlog de ideas — está separado de la especificación técnica en [`Project/`](./Project/).
 
 ## Instalación
 
@@ -42,8 +44,9 @@ Si falta, el instalador pregunta si desea instalarlo. Si el usuario rechaza una 
 ### Opcional
 
 - **Cava** — proporciona el espectro de audio.
+- **EasyEffects** — habilita la integración opcional de presets del ecualizador.
 
-Si falta y el usuario decide no instalarlo, Aurora continúa funcionando con sus funciones multimedia y su fallback visual del espectro.
+Si una dependencia opcional no está disponible, Aurora conserva las demás funciones y utiliza su comportamiento de ausencia elegante correspondiente.
 
 ## Diagnóstico
 
@@ -51,7 +54,7 @@ Si falta y el usuario decide no instalarlo, Aurora continúa funcionando con sus
 ./aurora-doctor
 ```
 
-Doctor es **read-only** y ahora audita tanto el entorno como el repositorio completo. Comprueba:
+Doctor es **read-only** y audita tanto el entorno como el repositorio. Comprueba:
 
 - entrypoint standalone;
 - estructura y archivos principales de Aurora;
@@ -61,7 +64,7 @@ Doctor es **read-only** y ahora audita tanto el entorno como el repositorio comp
 - referencias heredadas de End-4/ii y otras APIs obsoletas conocidas;
 - imports host-specific en el runtime;
 - declaraciones de singleton de Core;
-- marcadores `TODO`, `FIXME`, `DEPRECATED` y `OBSOLETE`;
+- marcadores de mantenimiento;
 - archivos temporales o backups que puedan ocultar implementaciones duplicadas;
 - versión de Quickshell;
 - uso de `Quickshell.Services.Mpris`;
@@ -74,25 +77,7 @@ Doctor es **read-only** y ahora audita tanto el entorno como el repositorio comp
 - formato de `VERSION`;
 - coherencia del Blueprint.
 
-Los hallazgos de mantenimiento intencional, como `TODO` en documentación o investigación, se reportan como advertencias y no bloquean automáticamente Aurora. Las referencias obsoletas dentro del runtime y las referencias rotas sí pueden bloquear el diagnóstico.
-
-> **Nota sobre falsos positivos conocidos:** dos categorías de warning son
-> esperadas y no requieren acción.
->
-> 1. **`qs.modules.common` / `qs.services` en `Blueprint/` y `Research/`** —
->    el check de referencias obsoletas es intencionalmente amplio: marca la
->    cadena en *cualquier* archivo de texto, incluida documentación que
->    menciona esos módulos en tiempo pasado (para explicar que se
->    eliminaron) o material de referencia en `Research/` que nunca formó
->    parte del runtime. Solo es un `[FAIL]` bloqueante si aparece dentro de
->    `Core/`, `Components/`, `Providers/`, `Themes/` o `shell.qml` - ver la
->    lógica en `aurora-doctor` → sección "Repository audit".
-> 2. **Marcadores de mantenimiento (`TODO`/`DEPRECATED`/etc.)** — el check
->    usa `grep -i`, así que también captura la palabra española "todo"
->    ("hoy **todo** vive junto...") y menciones de "obsolete"/"deprecated"
->    dentro de documentación que describe qué revisa el propio doctor. Antes
->    de asumir que hay trabajo pendiente, abre el archivo señalado y
->    confirma si es un marcador real en mayúsculas.
+Las referencias históricas a módulos privados de End-4/ii dentro de `Blueprint/` o `Research/` pueden aparecer como advertencias porque esos documentos explican decisiones o material de referencia. Lo que bloquea el runtime son las dependencias host-specific dentro del código ejecutable.
 
 ## Arquitectura
 
@@ -105,30 +90,44 @@ Aurora
 │   ├── AuroraMprisController.qml
 │   ├── AuroraPlayerProvider.qml
 │   ├── AuroraAudioProvider.qml
-│   └── AuroraThemeProvider.qml
+│   ├── AuroraThemeProvider.qml
+│   └── AuroraEqualizerProvider.qml
 ├── Themes/
 ├── Assets/
-├── Blueprint/
+├── Blueprint/               # documentación técnica
+├── Project/                 # identidad, filosofía e ideas
 └── aurora-doctor
 ```
 
-El Core y los Components no conocen APIs de End-4/ii. MPRIS se consume mediante la API oficial de Quickshell y Cava es opcional.
+El Core y los Components no conocen APIs privadas de End-4/ii. MPRIS se consume mediante la API oficial de Quickshell y Cava es opcional.
 
 ## Compatibilidad
 
-Aurora no intenta duplicar cada compositor. La estrategia es aprovechar las APIs generales de Quickshell y mantener adapters específicos separados.
+Aurora no intenta duplicar cada compositor. La estrategia actual es aprovechar las APIs generales de Quickshell y estándares multimedia, manteniendo cualquier adapter específico en la frontera de infraestructura.
 
-Esto permite que el mismo núcleo multimedia pueda utilizarse en distintos entornos soportados por Quickshell, aunque determinadas integraciones visuales o de posicionamiento puedan requerir un adapter específico.
+La compatibilidad futura con otros compositores, shells o ecosistemas es un objetivo arquitectónico, no una afirmación de soporte ya implementado. Un entorno solo se considerará soportado cuando exista una integración real y una prueba verificable.
 
-## Documentación
+## Documentación técnica
 
-La especificación técnica está en [`Blueprint/`](./Blueprint/), especialmente:
+La especificación técnica está en [`Blueprint/`](./Blueprint/):
 
 - [`ARCHITECTURE.md`](./Blueprint/ARCHITECTURE.md)
 - [`API.md`](./Blueprint/API.md)
+- [`DATAFLOW.md`](./Blueprint/DATAFLOW.md)
+- [`PROVIDERS.md`](./Blueprint/PROVIDERS.md)
 - [`INSTALL.md`](./Blueprint/INSTALL.md)
 - [`DECISIONS.md`](./Blueprint/DECISIONS.md)
-- [`PROVIDERS.md`](./Blueprint/PROVIDERS.md)
+- [`CONVENTIONS.md`](./Blueprint/CONVENTIONS.md)
+- [`STYLEGUIDE.md`](./Blueprint/STYLEGUIDE.md)
+- [`THEMES.md`](./Blueprint/THEMES.md)
+
+## Contexto del proyecto
+
+Los documentos que no forman parte del contrato técnico están en [`Project/`](./Project/):
+
+- [`PHILOSOPHY.md`](./Project/PHILOSOPHY.md)
+- [`OURS.md`](./Project/OURS.md)
+- [`IDEAS.md`](./Project/IDEAS.md)
 
 ## Estado
 
