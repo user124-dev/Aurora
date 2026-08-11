@@ -72,6 +72,12 @@ QtObject {
     readonly property int spectrumAnimation: 70
     readonly property int expandedSpectrumHeight: 90
 
+    // EasyEffects "Aurora is managing a preset" banner (AuroraExpandedView).
+    readonly property int effectsWarningHeight: 30
+    readonly property int effectsWarningBorderWidth: 1
+    readonly property real effectsWarningOpacity: 0.92
+    readonly property int effectsWarningPadding: 10
+
     // Audio architecture. Quickshell's PipeWire service is the primary
     // system-audio integration. Cava remains an optional sample source
     // because Quickshell 0.2.x does not expose the v0.3 peak-detection API.
