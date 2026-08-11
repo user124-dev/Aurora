@@ -18,6 +18,13 @@ Singleton {
     id: provider
 
     property string selectedIdentity: ""
+
+    // Cover art is cached locally instead of binding Image.source directly
+    // to a remote MPRIS trackArtUrl. Browser integrations can replace their
+    // temporary artwork file during a track change, which races an async
+    // Image loader. A stable local copy avoids that race for HTTP(S) art.
+    readonly property string artCacheDirectory: Quickshell.cachePath("cover-art")
+    property string pendingArtRequest: ""
     readonly property var meaningfulPlayers: computeMeaningfulPlayers(AuroraMprisController.players ?? [])
 
     function initialize() {
@@ -40,6 +47,7 @@ Singleton {
         AuroraState.canSeek = false
         AuroraState.shuffleEnabled = false
         AuroraState.repeatMode = "None"
+        provider.pendingArtRequest = ""
     }
 
     function normalized(value) {
@@ -54,8 +62,8 @@ Singleton {
         const albumA = normalized(a?.trackAlbum)
         const albumB = normalized(b?.trackAlbum)
 
-        // Prefer strong metadata matching. The previous title-only heuristic
-        // could incorrectly merge unrelated songs with the same title.
+        // Prefer strong metadata matching. A title-only heuristic can merge
+        // unrelated songs that happen to share a name.
         if (titleA && titleB) {
             const sameTitle = titleA === titleB || titleA.includes(titleB) || titleB.includes(titleA)
             const sameArtist = !artistA || !artistB || artistA === artistB || artistA.includes(artistB) || artistB.includes(artistA)
@@ -176,7 +184,7 @@ Singleton {
         AuroraState.title = player.trackTitle ?? ""
         AuroraState.artist = player.trackArtist ?? ""
         AuroraState.album = player.trackAlbum ?? ""
-        AuroraState.coverArt = player.trackArtUrl ?? ""
+        provider.requestArtCache(player.trackArtUrl ?? "")
         AuroraState.duration = player.length ?? 0
         AuroraState.position = player.position ?? 0
         AuroraState.canSeek = !!player.canSeek && !!player.positionSupported
@@ -228,27 +236,92 @@ Singleton {
         player.loopState = nextMode
     }
 
-    FileView {
-        id: lastSourceFile
-        path: Quickshell.statePath("aurora-last-source.json")
-        watchChanges: true
-        onFileChanged: reload()
-        onAdapterUpdated: writeAdapter()
+    function requestArtCache(url) {
+        if (!url) {
+            provider.pendingArtRequest = ""
+            AuroraState.coverArt = ""
+            return
+        }
 
-        JsonAdapter {
-            id: lastSource
-            property string identity: ""
+        // Local/data artwork should stay untouched. Only remote HTTP(S)
+        // resources need a downloaded stable copy.
+        if (!/^https?:\/\//i.test(url)) {
+            provider.pendingArtRequest = url
+            AuroraState.coverArt = url
+            return
+        }
+
+        if (url === provider.pendingArtRequest)
+            return
+
+        provider.pendingArtRequest = url
+
+        if (artCache.running)
+            artCache.running = false
+
+        artCache.targetUrl = url
+        artCache.cachedPath = provider.artCacheDirectory + "/" + Qt.md5(url)
+
+        // Do not interpolate the URL into a shell command. Passing each
+        // argument directly prevents shell metacharacters or quotes in a
+        // remote URL from becoming executable syntax. `--create-dirs` lets
+        // curl create Aurora's cache directory without a shell wrapper.
+        artCache.command = [
+            "curl", "-fsSL",
+            "--create-dirs",
+            "--connect-timeout", "5",
+            "--max-time", "20",
+            "--retry", "1",
+            url,
+            "-o", artCache.cachedPath
+        ]
+        artCache.running = true
+    }
+
+    Process {
+        id: artCache
+        property string targetUrl: ""
+        property string cachedPath: ""
+
+        onExited: (exitCode, exitStatus) => {
+            if (artCache.targetUrl !== provider.pendingArtRequest)
+                return
+
+            AuroraState.coverArt = exitCode === 0 ? Qt.resolvedUrl(artCache.cachedPath) : ""
+        }
+    }
+
+    // Only instantiate the state file when the feature is enabled. The
+    // default remains false, avoiding a harmless but noisy missing-file
+    // warning on first startup.
+    Loader {
+        id: lastSourceLoader
+        active: AuroraConfig.rememberLastSource
+        asynchronous: false
+
+        sourceComponent: FileView {
+            id: lastSourceFile
+            property alias identity: lastSource.identity
+            path: Quickshell.statePath("aurora-last-source.json")
+            watchChanges: true
+            onFileChanged: reload()
+            onAdapterUpdated: writeAdapter()
+
+            JsonAdapter {
+                id: lastSource
+                property string identity: ""
+            }
         }
     }
 
     function saveLastSource(identity) {
-        if (AuroraConfig.rememberLastSource)
-            lastSource.identity = identity
+        if (lastSourceLoader.item)
+            lastSourceLoader.item.identity = identity
     }
 
     function restoreLastSource() {
-        if (AuroraConfig.rememberLastSource && lastSource.identity)
-            selectedIdentity = lastSource.identity
+        if (lastSourceLoader.item && lastSourceLoader.item.identity)
+            selectedIdentity = lastSourceLoader.item.identity
     }
 
     Timer {
