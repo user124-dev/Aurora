@@ -10,9 +10,10 @@
  *
  * Description:
  * Expanded presentation with player switching, track information,
- * spectrum, controls, and a non-blocking warning when Aurora has
- * actively loaded an EasyEffects preset. Interactive child regions
- * are exposed to AuroraPlayer so their clicks do not collapse the view.
+ * spectrum, an equalizer preset switcher, controls, and a non-blocking
+ * warning when Aurora has actively loaded an EasyEffects preset.
+ * Interactive child regions are exposed to AuroraPlayer so their
+ * clicks do not collapse the view.
  */
 
 import QtQuick
@@ -25,7 +26,8 @@ Item {
     id: root
     anchors.fill: parent
 
-    readonly property bool interactiveHovered: switcher.hovered || controls.hovered
+    readonly property bool interactiveHovered:
+        switcher.hovered || controls.hovered || equalizerSwitcher.hovered
 
     ColumnLayout {
         anchors.fill: parent
@@ -59,17 +61,17 @@ Item {
         Rectangle {
             visible: AuroraState.effectsWarning
             Layout.fillWidth: true
-            Layout.preferredHeight: visible ? 30 : 0
+            Layout.preferredHeight: visible ? AuroraConfig.effectsWarningHeight : 0
             radius: height / 2
             color: AuroraTheme.colorContainer
-            border.width: 1
+            border.width: AuroraConfig.effectsWarningBorderWidth
             border.color: AuroraTheme.colorPrimary
-            opacity: 0.92
+            opacity: AuroraConfig.effectsWarningOpacity
 
             Text {
                 anchors.fill: parent
-                anchors.leftMargin: 10
-                anchors.rightMargin: 10
+                anchors.leftMargin: AuroraConfig.effectsWarningPadding
+                anchors.rightMargin: AuroraConfig.effectsWarningPadding
                 verticalAlignment: Text.AlignVCenter
                 text: "EasyEffects activo: Aurora está gestionando un preset de audio."
                 elide: Text.ElideRight
@@ -77,6 +79,11 @@ Item {
                 font.family: AuroraTheme.fontFamily
                 color: AuroraTheme.colorOnBackground
             }
+        }
+
+        AuroraEqualizerSwitcher {
+            id: equalizerSwitcher
+            Layout.fillWidth: true
         }
 
         AuroraSpectrum {
