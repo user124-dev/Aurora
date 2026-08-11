@@ -71,7 +71,8 @@ for file in \
     Components/Layout/AuroraCompactView.qml Components/Layout/AuroraHoverView.qml \
     Components/Layout/AuroraExpandedView.qml Components/AuroraControls.qml \
     Components/AuroraCover.qml Components/AuroraInfo.qml Components/AuroraSpectrum.qml \
-    Components/AuroraPlayerSwitcher.qml Components/Media/AuroraBrowserBadge.qml \
+    Components/AuroraPlayerSwitcher.qml Components/AuroraEqualizerSwitcher.qml \
+    Components/Media/AuroraBrowserBadge.qml \
     Assets/cava/raw_output_config.txt; do require_file "$file"; done
 
 if grep -q '^pragma Singleton' "$ROOT_DIR/Core/AuroraAnimations.qml" && grep -q '^QtObject {' "$ROOT_DIR/Core/AuroraAnimations.qml"; then
