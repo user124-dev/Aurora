@@ -71,7 +71,6 @@ Item {
 
     HoverHandler {
         id: hoverHandler
-        z: 3
         onHoveredChanged: {
             if (hoverHandler.hovered) {
                 hideTimer.stop()
@@ -86,7 +85,6 @@ Item {
     TapHandler {
         acceptedButtons: Qt.LeftButton
         enabled: !root.hostSized && !root.interactiveHovered
-        z: 3
         onTapped: {
             if (AuroraState.widgetMode === AuroraConfig.hover)
                 AuroraState.widgetMode = AuroraConfig.expanded
