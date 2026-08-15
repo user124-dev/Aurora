@@ -1,9 +1,5 @@
 /*
- * AuroraLyricsProvider.qml
- *
- * Optional lyrics adapter. LRCLIB is the first backend because it exposes
- * plain and timestamped lyrics without an API key. The backend is isolated
- * so another source can be added without changing Components.
+ * AuroraLyricsProvider.qml — optional, backend-isolated lyrics service.
  */
 pragma Singleton
 
@@ -30,7 +26,6 @@ Singleton {
     function refresh() {
         if (!AuroraState.lyricsAvailable)
             return
-
         if (!AuroraState.connected || !AuroraState.title || !AuroraState.artist) {
             clear("No track")
             return
@@ -58,6 +53,7 @@ Singleton {
         if (request.running)
             request.running = false
 
+        request.activeRequestKey = key
         request.command = [
             "curl", "-fsSL",
             "--connect-timeout", "5",
@@ -84,22 +80,17 @@ Singleton {
     function parseSynced(value) {
         if (!value)
             return []
-
         const result = []
-        const lines = String(value).split("\n")
         const pattern = /^\[(\d+):(\d{2}(?:\.\d+)?)\]\s?(.*)$/
-
-        for (const line of lines) {
+        for (const line of String(value).split("\n")) {
             const match = line.match(pattern)
             if (!match)
                 continue
             const minutes = Number(match[1])
             const seconds = Number(match[2])
-            if (!isFinite(minutes) || !isFinite(seconds))
-                continue
-            result.push({ time: minutes * 60 + seconds, text: match[3] })
+            if (isFinite(minutes) && isFinite(seconds))
+                result.push({ time: minutes * 60 + seconds, text: match[3] })
         }
-
         return result.sort((a, b) => a.time - b.time)
     }
 
@@ -116,6 +107,7 @@ Singleton {
 
     Process {
         id: request
+        property string activeRequestKey: ""
 
         stdout: SplitParser {
             splitMarker: "\n"
@@ -128,6 +120,9 @@ Singleton {
         }
 
         onExited: (exitCode, exitStatus) => {
+            if (request.activeRequestKey !== provider.requestKey)
+                return
+
             if (Number(exitCode) !== 0) {
                 provider.clear("Not found")
                 return
