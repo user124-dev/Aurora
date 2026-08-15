@@ -1,10 +1,9 @@
 /*
  * AuroraLyricsProvider.qml
  *
- * Optional lyrics adapter. LRCLIB is used as the first backend because it
- * exposes plain and timestamped lyrics without requiring an API key.
- * The provider keeps the backend behind a small Aurora contract so another
- * source can be added later without changing Components.
+ * Optional lyrics adapter. LRCLIB is the first backend because it exposes
+ * plain and timestamped lyrics without an API key. The backend is isolated
+ * so another source can be added without changing Components.
  */
 pragma Singleton
 
@@ -22,12 +21,16 @@ Singleton {
     property string buffer: ""
 
     function initialize() {
-        AuroraState.lyricsAvailable = true
-        AuroraState.lyricsStatus = "Ready"
-        provider.refresh()
+        AuroraState.lyricsAvailable = AuroraConfig.lyricsIntegrationEnabled
+        AuroraState.lyricsStatus = AuroraState.lyricsAvailable ? "Ready" : "Disabled"
+        if (AuroraState.lyricsAvailable)
+            provider.refresh()
     }
 
     function refresh() {
+        if (!AuroraState.lyricsAvailable)
+            return
+
         if (!AuroraState.connected || !AuroraState.title || !AuroraState.artist) {
             clear("No track")
             return
@@ -39,13 +42,7 @@ Singleton {
             return
         }
 
-        const key = [
-            AuroraState.title,
-            AuroraState.artist,
-            AuroraState.album,
-            duration
-        ].join("|")
-
+        const key = [AuroraState.title, AuroraState.artist, AuroraState.album, duration].join("|")
         if (key === provider.requestKey && !AuroraState.lyricsLoading)
             return
 
@@ -57,6 +54,9 @@ Singleton {
         AuroraState.lyricsSynced = ""
         AuroraState.lyricsLines = []
         AuroraState.lyricsCurrentLine = -1
+
+        if (request.running)
+            request.running = false
 
         request.command = [
             "curl", "-fsSL",
@@ -97,10 +97,7 @@ Singleton {
             const seconds = Number(match[2])
             if (!isFinite(minutes) || !isFinite(seconds))
                 continue
-            result.push({
-                time: minutes * 60 + seconds,
-                text: match[3]
-            })
+            result.push({ time: minutes * 60 + seconds, text: match[3] })
         }
 
         return result.sort((a, b) => a.time - b.time)
@@ -109,11 +106,9 @@ Singleton {
     function applyPayload(payload) {
         const plain = String(payload?.plainLyrics || "")
         const synced = String(payload?.syncedLyrics || "")
-        const lines = parseSynced(synced)
-
         AuroraState.lyricsPlain = plain
         AuroraState.lyricsSynced = synced
-        AuroraState.lyricsLines = lines
+        AuroraState.lyricsLines = parseSynced(synced)
         AuroraState.lyricsCurrentLine = -1
         AuroraState.lyricsLoading = false
         AuroraState.lyricsStatus = plain || synced ? "Ready" : "Instrumental"
@@ -139,8 +134,7 @@ Singleton {
             }
 
             try {
-                const payload = JSON.parse(provider.buffer.trim())
-                provider.applyPayload(payload)
+                provider.applyPayload(JSON.parse(provider.buffer.trim()))
             } catch (error) {
                 provider.clear("Invalid response")
             }
@@ -148,7 +142,7 @@ Singleton {
     }
 
     Timer {
-        interval: 120
+        interval: AuroraConfig.lyricsRefreshInterval
         running: AuroraState.lyricsLines.length > 0 && AuroraState.playbackState === "Playing"
         repeat: true
         onTriggered: {
