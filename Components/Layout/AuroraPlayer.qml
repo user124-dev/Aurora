@@ -1,25 +1,12 @@
 /*
- * ╔══════════════════════════════════════════════════════════════╗
- * ║                      Aurora Player                          ║
- * ╚══════════════════════════════════════════════════════════════╝
- *
- * File        : AuroraPlayer.qml
- * Module      : Components/Layout
- * Component   : Root Widget
- * Version     : 0.1.0-dev
- *
- * Description:
- * Root layout. AuroraState.widgetMode is the single source of truth
- * for Compact / Hover / Expanded. Pointer hover drives Compact ↔ Hover;
- * widget-area taps drive Hover ↔ Expanded. Child interactive controls
- * explicitly opt out of the mode-changing tap so media actions never
- * collapse or expand the widget accidentally.
+ * AuroraPlayer.qml — root widget compositor.
+ * AuroraState.widgetMode is the single source of truth for Compact / Hover /
+ * Expanded; child interactive regions opt out of mode-changing taps.
  */
-
 import QtQuick
-
 import "../../Providers"
 import "../../Core"
+import "../../Session"
 
 Item {
     id: root
@@ -27,10 +14,6 @@ Item {
     property real hostWidth: 0
     property real hostHeight: 0
     readonly property bool hostSized: hostWidth > 0 && hostHeight > 0
-
-    // The loaded view exposes whether the pointer is over an interactive
-    // child such as transport controls or the player switcher. The root
-    // tap must not change widget mode while those controls are targeted.
     readonly property bool interactiveHovered: viewLoader.item?.interactiveHovered ?? false
 
     Component.onCompleted: {
@@ -39,6 +22,8 @@ Item {
         AuroraPipewireProvider.initialize()
         AuroraThemeProvider.initialize()
         AuroraEqualizerProvider.initialize()
+        AuroraLyricsProvider.initialize()
+        AuroraSessionQueue.syncState()
         AuroraPluginRegistry.discoverPlugins(root)
 
         if (AuroraState.widgetMode < AuroraConfig.compact ||
@@ -92,15 +77,11 @@ Item {
                 showTimer.restart()
                 return
             }
-
             showTimer.stop()
             hideTimer.restart()
         }
     }
 
-    // This handler belongs to the widget surface. Interactive child
-    // regions expose `interactiveHovered`, which disables this handler
-    // before a control click can trigger the mode transition as well.
     TapHandler {
         acceptedButtons: Qt.LeftButton
         enabled: !root.hostSized && !root.interactiveHovered
@@ -133,10 +114,6 @@ Item {
     Loader {
         id: viewLoader
         anchors.fill: parent
-        // These views are small and switching them asynchronously creates
-        // a visible blank frame in a compact widget. Synchronous loading is
-        // preferable here because the interaction contract values continuity
-        // over background component construction.
         asynchronous: false
         sourceComponent: {
             if (root.hostSized) return hoverWithSpectrum
