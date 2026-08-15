@@ -1,56 +1,99 @@
 /*
  * Aurora Theme Provider
  *
- * The standalone Aurora build uses Aurora's bundled theme as its
- * platform-independent baseline. Host-specific theme adapters can be
- * added later without coupling Core or Components to a desktop shell.
+ * Theme selection is persisted outside the runtime tree so the widget stays
+ * portable. Components only see AuroraTheme; they never read this file.
  */
-
 pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import "../Core"
-import "../Themes/Default"
 
 Singleton {
     id: provider
 
+    readonly property string configPath:
+        (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/aurora/theme.json"
     readonly property bool usingSystemTheme: AuroraConfig.themeMode === AuroraConfig.themeSystem
+    property string activeTheme: "aurora"
     property bool initialized: false
+
+    function palette(name) {
+        switch (name) {
+        case "midnight":
+            return {
+                background: "#070b10", onBackground: "#e6edf3", container: "#111923",
+                muted: "#8290a0", primary: "#9cc9ff", onPrimary: "#07111d", outline: "#293746"
+            }
+        case "paper":
+            return {
+                background: "#f2eee7", onBackground: "#26231f", container: "#e3ded4",
+                muted: "#777066", primary: "#514b43", onPrimary: "#f8f5ef", outline: "#c8c0b4"
+            }
+        case "nebula":
+            return {
+                background: "#171319", onBackground: "#f0e4dc", container: "#282027",
+                muted: "#aa98a2", primary: "#e8b9a6", onPrimary: "#21120d", outline: "#493942"
+            }
+        default:
+            return {
+                background: "#0e1319", onBackground: "#efe7dc", container: "#1b222b",
+                muted: "#9aa3ad", primary: "#efe3d8", onPrimary: "#171310", outline: "#39434f"
+            }
+        }
+    }
+
+    function apply(name) {
+        const p = palette(name)
+        activeTheme = ["aurora", "midnight", "paper", "nebula"].includes(name) ? name : "aurora"
+        AuroraTheme.colorBackground = p.background
+        AuroraTheme.colorOnBackground = p.onBackground
+        AuroraTheme.colorContainer = p.container
+        AuroraTheme.colorMuted = p.muted
+        AuroraTheme.colorPrimary = p.primary
+        AuroraTheme.colorOnPrimary = p.onPrimary
+        AuroraTheme.colorOutline = p.outline
+        AuroraTheme.fontFamily = "sans-serif"
+        AuroraTheme.fontSizeSmall = 11
+        AuroraTheme.fontSizeNormal = 13
+        AuroraTheme.fontSizeLarge = 15
+        AuroraTheme.fontSizeHuge = 22
+    }
 
     function initialize() {
         if (initialized)
             return
         initialized = true
-        resolve()
+        apply("aurora")
+        themeFile.reload()
         console.log("[Aurora] ThemeProvider initialized")
     }
 
-    function resolve() {
-        // `themeSystem` intentionally falls back to Aurora's neutral bundled
-        // theme in standalone mode. Host adapters can override this provider
-        // in an embedding configuration later.
-        applyAuroraTheme()
+    function applyStoredTheme() {
+        const requested = themeAdapter.name || "aurora"
+        provider.apply(requested)
     }
 
-    function applyAuroraTheme() {
-        AuroraTheme.colorBackground = Theme.colorBackground
-        AuroraTheme.colorOnBackground = Theme.colorOnBackground
-        AuroraTheme.colorContainer = Theme.colorContainer
-        AuroraTheme.colorMuted = Theme.colorMuted
-        AuroraTheme.colorPrimary = Theme.colorPrimary
-        AuroraTheme.colorOnPrimary = Theme.colorOnPrimary
-        AuroraTheme.colorOutline = Theme.colorOutline
-        AuroraTheme.fontFamily = Theme.fontFamily
-        AuroraTheme.fontSizeSmall = Theme.fontSizeSmall
-        AuroraTheme.fontSizeNormal = Theme.fontSizeNormal
-        AuroraTheme.fontSizeLarge = Theme.fontSizeLarge
-        AuroraTheme.fontSizeHuge = Theme.fontSizeHuge
+    FileView {
+        id: themeFile
+        path: provider.configPath
+        watchChanges: true
+        printErrors: false
+        onLoaded: provider.applyStoredTheme()
+        onFileChanged: reload()
+
+        JsonAdapter {
+            id: themeAdapter
+            property string name: "aurora"
+        }
     }
 
     Connections {
         target: AuroraConfig
-        function onThemeModeChanged() { provider.resolve() }
+        function onThemeModeChanged() { provider.applyStoredTheme() }
     }
+
+    Component.onCompleted: provider.initialize()
 }
