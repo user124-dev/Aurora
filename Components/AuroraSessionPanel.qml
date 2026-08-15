@@ -6,7 +6,8 @@ import "../Session"
 Item {
     id: root
     property bool hovered: false
-    implicitHeight: 118
+    property string listMode: "queue"
+    implicitHeight: AuroraConfig.featurePanelHeight
 
     HoverHandler {
         onHoveredChanged: root.hovered = hovered
@@ -21,7 +22,7 @@ Item {
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: 10
-            spacing: 6
+            spacing: 5
 
             RowLayout {
                 Layout.fillWidth: true
@@ -35,36 +36,56 @@ Item {
                     elide: Text.ElideRight
                 }
 
-                Text {
-                    text: AuroraState.sessionQueue.length + " queued"
-                    font.pixelSize: AuroraTheme.fontSizeSmall
-                    font.family: AuroraTheme.fontFamily
-                    color: AuroraTheme.colorMuted
+                Rectangle {
+                    implicitWidth: 64
+                    implicitHeight: 22
+                    radius: 11
+                    color: root.listMode === "queue" ? AuroraTheme.colorPrimary : AuroraTheme.colorBackground
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Queue " + AuroraState.sessionQueue.length
+                        font.pixelSize: AuroraTheme.fontSizeSmall
+                        font.family: AuroraTheme.fontFamily
+                        color: root.listMode === "queue" ? AuroraTheme.colorOnPrimary : AuroraTheme.colorOnBackground
+                    }
+                    TapHandler { onTapped: root.listMode = "queue" }
                 }
 
                 Rectangle {
-                    implicitWidth: 56
+                    implicitWidth: 72
                     implicitHeight: 22
                     radius: 11
-                    color: AuroraTheme.colorPrimary
+                    color: root.listMode === "history" ? AuroraTheme.colorPrimary : AuroraTheme.colorBackground
+                    Text {
+                        anchors.centerIn: parent
+                        text: "History " + AuroraState.sessionHistory.length
+                        font.pixelSize: AuroraTheme.fontSizeSmall
+                        font.family: AuroraTheme.fontFamily
+                        color: root.listMode === "history" ? AuroraTheme.colorOnPrimary : AuroraTheme.colorOnBackground
+                    }
+                    TapHandler { onTapped: root.listMode = "history" }
+                }
 
+                Rectangle {
+                    implicitWidth: 50
+                    implicitHeight: 22
+                    radius: 11
+                    color: AuroraTheme.colorContainer
                     Text {
                         anchors.centerIn: parent
                         text: "Add"
                         font.pixelSize: AuroraTheme.fontSizeSmall
                         font.family: AuroraTheme.fontFamily
-                        color: AuroraTheme.colorOnPrimary
+                        color: AuroraTheme.colorOnBackground
                     }
-
                     TapHandler { onTapped: AuroraSessionQueue.addCurrent() }
                 }
 
                 Rectangle {
-                    implicitWidth: 56
+                    implicitWidth: 50
                     implicitHeight: 22
                     radius: 11
                     color: AuroraTheme.colorBackground
-
                     Text {
                         anchors.centerIn: parent
                         text: "Clear"
@@ -72,37 +93,45 @@ Item {
                         font.family: AuroraTheme.fontFamily
                         color: AuroraTheme.colorOnBackground
                     }
-
-                    TapHandler { onTapped: AuroraSessionQueue.clearQueue() }
+                    TapHandler {
+                        onTapped: {
+                            if (root.listMode === "queue")
+                                AuroraSessionQueue.clearQueue()
+                        }
+                    }
                 }
             }
 
             Flickable {
-                id: queueView
+                id: sessionView
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
                 contentWidth: width
-                contentHeight: queueColumn.implicitHeight
+                contentHeight: sessionColumn.implicitHeight
 
                 Column {
-                    id: queueColumn
-                    width: queueView.width
+                    id: sessionColumn
+                    width: sessionView.width
                     spacing: 4
 
                     Repeater {
-                        model: AuroraState.sessionQueue
+                        model: root.listMode === "queue"
+                            ? AuroraState.sessionQueue
+                            : AuroraState.sessionHistory
 
                         Rectangle {
-                            width: queueColumn.width
-                            height: 28
+                            width: sessionColumn.width
+                            height: 27
                             radius: 8
-                            color: index === 0 ? AuroraTheme.colorPrimary : AuroraTheme.colorBackground
+                            color: root.listMode === "queue" && index === 0
+                                ? AuroraTheme.colorPrimary
+                                : AuroraTheme.colorBackground
 
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.leftMargin: 8
-                                anchors.rightMargin: 4
+                                anchors.rightMargin: 5
                                 spacing: 6
 
                                 Text {
@@ -110,16 +139,27 @@ Item {
                                     text: (index + 1) + "  " + (modelData.title || "Untitled")
                                     font.pixelSize: AuroraTheme.fontSizeSmall
                                     font.family: AuroraTheme.fontFamily
-                                    color: index === 0 ? AuroraTheme.colorOnPrimary : AuroraTheme.colorOnBackground
+                                    color: root.listMode === "queue" && index === 0
+                                        ? AuroraTheme.colorOnPrimary
+                                        : AuroraTheme.colorOnBackground
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    visible: root.listMode === "history"
+                                    text: modelData.artist || ""
+                                    font.pixelSize: AuroraTheme.fontSizeSmall
+                                    font.family: AuroraTheme.fontFamily
+                                    color: AuroraTheme.colorMuted
                                     elide: Text.ElideRight
                                 }
 
                                 Rectangle {
+                                    visible: root.listMode === "queue"
                                     implicitWidth: 42
                                     implicitHeight: 20
                                     radius: 10
                                     color: index === 0 ? AuroraTheme.colorOnPrimary : AuroraTheme.colorContainer
-                                    opacity: 0.9
 
                                     Text {
                                         anchors.centerIn: parent
@@ -133,10 +173,10 @@ Item {
                                 }
 
                                 Text {
+                                    visible: root.listMode === "queue"
                                     text: "×"
                                     font.pixelSize: AuroraTheme.fontSizeSmall
                                     color: index === 0 ? AuroraTheme.colorOnPrimary : AuroraTheme.colorMuted
-
                                     TapHandler { onTapped: AuroraSessionQueue.remove(index) }
                                 }
                             }
@@ -144,9 +184,11 @@ Item {
                     }
 
                     Text {
-                        visible: AuroraState.sessionQueue.length === 0
-                        width: queueColumn.width
-                        text: "No hay elementos en la cola. Añade la pista actual."
+                        visible: (root.listMode === "queue" ? AuroraState.sessionQueue : AuroraState.sessionHistory).length === 0
+                        width: sessionColumn.width
+                        text: root.listMode === "queue"
+                            ? "No hay elementos en la cola. Añade la pista actual."
+                            : "Todavía no hay historial para esta fuente."
                         font.pixelSize: AuroraTheme.fontSizeSmall
                         font.family: AuroraTheme.fontFamily
                         color: AuroraTheme.colorMuted
@@ -157,7 +199,7 @@ Item {
             Text {
                 Layout.fillWidth: true
                 text: AuroraState.sessionPlaybackMessage
-                visible: text.length > 0
+                visible: root.listMode === "queue" && text.length > 0
                 font.pixelSize: AuroraTheme.fontSizeSmall
                 font.family: AuroraTheme.fontFamily
                 color: AuroraTheme.colorMuted
