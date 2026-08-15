@@ -1,51 +1,23 @@
 /*
- * ╔══════════════════════════════════════════════════════════════╗
- * ║                      Aurora Player                          ║
- * ╚══════════════════════════════════════════════════════════════╝
- *
- * File        : AuroraTheme.qml
- * Module      : Core
- * Component   : Theme Contract
- * Version     : 0.1.0-dev
- *
- * Description:
- * The only visual contract that visual components may read for
- * colors and typography. It starts from Aurora's bundled fallback
- * palette and is resolved by AuroraThemeProvider at runtime; the
- * runtime default is the host system theme.
- *
- * Philosophy:
- * Components read AuroraTheme. Only AuroraThemeProvider writes it.
- * Nothing else in Aurora should know a host theme system exists.
+ * AuroraTheme.qml — runtime visual contract.
+ * Components consume this object; AuroraThemeProvider is the only writer.
  */
-
 pragma Singleton
 
 import QtQuick
-import "../Themes/Default"
 
 QtObject {
+    property color colorBackground: "#0e1319"
+    property color colorOnBackground: "#efe7dc"
+    property color colorContainer: "#1b222b"
+    property color colorMuted: "#9aa3ad"
+    property color colorPrimary: "#efe3d8"
+    property color colorOnPrimary: "#171310"
+    property color colorOutline: "#39434f"
 
-    // ============================================================
-    // MARK: Colors
-    // ============================================================
-
-    property color colorBackground: Theme.colorBackground
-    property color colorOnBackground: Theme.colorOnBackground
-    property color colorContainer: Theme.colorContainer
-    property color colorMuted: Theme.colorMuted
-    property color colorPrimary: Theme.colorPrimary
-    property color colorOnPrimary: Theme.colorOnPrimary
-    property color colorOutline: Theme.colorOutline
-
-
-    // ============================================================
-    // MARK: Typography
-    // ============================================================
-
-    property string fontFamily: Theme.fontFamily
-    property int fontSizeSmall: Theme.fontSizeSmall
-    property int fontSizeNormal: Theme.fontSizeNormal
-    property int fontSizeLarge: Theme.fontSizeLarge
-    property int fontSizeHuge: Theme.fontSizeHuge
+    property string fontFamily: "sans-serif"
+    property int fontSizeSmall: 11
+    property int fontSizeNormal: 13
+    property int fontSizeLarge: 15
+    property int fontSizeHuge: 22
 }
