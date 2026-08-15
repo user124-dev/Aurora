@@ -1,21 +1,10 @@
 /*
- * ╔══════════════════════════════════════════════════════════════╗
- * ║                      Aurora Player                          ║
- * ╚══════════════════════════════════════════════════════════════╝
+ * AuroraExpandedView.qml
  *
- * File        : AuroraExpandedView.qml
- * Module      : Components/Layout
- * Component   : Expanded View
- * Version     : 0.1.0-dev
- *
- * Description:
- * Expanded presentation with player switching, track information,
- * spectrum, an equalizer preset switcher, controls, and a non-blocking
- * warning when Aurora has actively loaded an EasyEffects preset.
- * Interactive child regions are exposed to AuroraPlayer so their
- * clicks do not collapse the view.
+ * Expanded presentation for playback, spectrum, effects and Aurora's
+ * session/lyrics feature surfaces. Components only consume AuroraState and
+ * the small feature singletons exposed at the application boundary.
  */
-
 import QtQuick
 import QtQuick.Layouts
 import "../../Core"
@@ -26,8 +15,10 @@ Item {
     id: root
     anchors.fill: parent
 
+    property string panelMode: ""
     readonly property bool interactiveHovered:
-        switcher.hovered || controls.hovered || equalizerSwitcher.hovered
+        switcher.hovered || controls.hovered || equalizerSwitcher.hovered ||
+        sessionPanel.hovered || lyricsPanel.hovered || panelToolbarHover.hovered
 
     ColumnLayout {
         anchors.fill: parent
@@ -86,6 +77,53 @@ Item {
             Layout.fillWidth: true
         }
 
+        Row {
+            Layout.fillWidth: true
+            spacing: AuroraConfig.switcherChipSpacing
+
+            Rectangle {
+                implicitWidth: 86
+                implicitHeight: AuroraConfig.featureChipHeight
+                radius: height / 2
+                color: root.panelMode === "queue" ? AuroraTheme.colorPrimary : AuroraTheme.colorContainer
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "Queue"
+                    font.pixelSize: AuroraTheme.fontSizeSmall
+                    font.family: AuroraTheme.fontFamily
+                    color: root.panelMode === "queue" ? AuroraTheme.colorOnPrimary : AuroraTheme.colorOnBackground
+                }
+                TapHandler { onTapped: root.panelMode = root.panelMode === "queue" ? "" : "queue" }
+            }
+
+            Rectangle {
+                implicitWidth: 86
+                implicitHeight: AuroraConfig.featureChipHeight
+                radius: height / 2
+                color: root.panelMode === "lyrics" ? AuroraTheme.colorPrimary : AuroraTheme.colorContainer
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "Lyrics"
+                    font.pixelSize: AuroraTheme.fontSizeSmall
+                    font.family: AuroraTheme.fontFamily
+                    color: root.panelMode === "lyrics" ? AuroraTheme.colorOnPrimary : AuroraTheme.colorOnBackground
+                }
+                TapHandler { onTapped: root.panelMode = root.panelMode === "lyrics" ? "" : "lyrics" }
+            }
+
+            HoverHandler { id: panelToolbarHover }
+        }
+
+        Loader {
+            Layout.fillWidth: true
+            Layout.preferredHeight: AuroraConfig.featurePanelHeight
+            active: root.panelMode !== ""
+            asynchronous: false
+            sourceComponent: root.panelMode === "queue" ? queueComponent : lyricsComponent
+        }
+
         AuroraSpectrum {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -96,5 +134,15 @@ Item {
             id: controls
             Layout.alignment: Qt.AlignHCenter
         }
+    }
+
+    Component {
+        id: queueComponent
+        AuroraSessionPanel { id: sessionPanel }
+    }
+
+    Component {
+        id: lyricsComponent
+        AuroraLyricsPanel { id: lyricsPanel }
     }
 }
