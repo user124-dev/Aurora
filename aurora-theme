@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Aurora theme selector. Stores user preference outside the runtime tree.
+
+set -u
+
+CONFIG_BASE="${XDG_CONFIG_HOME:-${HOME}/.config}"
+THEME_DIR="${CONFIG_BASE%/}/aurora"
+THEME_FILE="$THEME_DIR/theme.json"
+
+usage() {
+    cat <<'EOF'
+Aurora Theme
+
+Usage:
+  aurora-theme list
+  aurora-theme current
+  aurora-theme set <theme>
+  aurora-theme reset
+
+Themes:
+  aurora    Black-hole inspired neutral/beige palette (default)
+  midnight  Deep blue/black palette
+  paper     Light neutral palette
+  nebula    Dark warm/pink palette
+EOF
+}
+
+is_valid() {
+    case "$1" in
+        aurora|midnight|paper|nebula) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+case "${1:-}" in
+    list)
+        printf '%s\n' aurora midnight paper nebula
+        ;;
+    current)
+        if [[ -f "$THEME_FILE" ]]; then
+            sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$THEME_FILE" | head -n1
+        else
+            printf '%s\n' aurora
+        fi
+        ;;
+    set)
+        if [[ -z "${2:-}" ]] || ! is_valid "$2"; then
+            printf 'Tema inválido. Usa: aurora, midnight, paper o nebula.\n' >&2
+            exit 2
+        fi
+        mkdir -p "$THEME_DIR"
+        printf '{"name":"%s"}\n' "$2" > "$THEME_FILE"
+        printf 'Aurora theme: %s\n' "$2"
+        ;;
+    reset)
+        mkdir -p "$THEME_DIR"
+        printf '{"name":"aurora"}\n' > "$THEME_FILE"
+        printf 'Aurora theme: aurora\n'
+        ;;
+    -h|--help|"")
+        usage
+        ;;
+    *)
+        printf 'Opción desconocida: %s\n\n' "$1" >&2
+        usage >&2
+        exit 2
+        ;;
+esac
