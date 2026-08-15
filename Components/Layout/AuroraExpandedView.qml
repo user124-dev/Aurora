@@ -1,8 +1,5 @@
 /*
- * AuroraExpandedView.qml
- *
- * Expanded presentation for playback, spectrum, effects and Aurora's
- * session/lyrics feature surfaces.
+ * AuroraExpandedView.qml — expanded playback, audio and feature surfaces.
  */
 import QtQuick
 import QtQuick.Layouts
@@ -118,7 +115,8 @@ Item {
         Loader {
             id: panelLoader
             Layout.fillWidth: true
-            Layout.preferredHeight: AuroraConfig.featurePanelHeight
+            Layout.preferredHeight: active ? AuroraConfig.featurePanelHeight : 0
+            visible: active
             active: root.panelMode !== ""
             asynchronous: false
             sourceComponent: root.panelMode === "queue" ? queueComponent : lyricsComponent
