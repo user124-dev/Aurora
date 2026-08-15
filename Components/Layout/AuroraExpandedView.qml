@@ -2,8 +2,7 @@
  * AuroraExpandedView.qml
  *
  * Expanded presentation for playback, spectrum, effects and Aurora's
- * session/lyrics feature surfaces. Components only consume AuroraState and
- * the small feature singletons exposed at the application boundary.
+ * session/lyrics feature surfaces.
  */
 import QtQuick
 import QtQuick.Layouts
@@ -18,7 +17,7 @@ Item {
     property string panelMode: ""
     readonly property bool interactiveHovered:
         switcher.hovered || controls.hovered || equalizerSwitcher.hovered ||
-        sessionPanel.hovered || lyricsPanel.hovered || panelToolbarHover.hovered
+        panelLoader.item?.hovered || panelToolbarHover.hovered
 
     ColumnLayout {
         anchors.fill: parent
@@ -117,6 +116,7 @@ Item {
         }
 
         Loader {
+            id: panelLoader
             Layout.fillWidth: true
             Layout.preferredHeight: AuroraConfig.featurePanelHeight
             active: root.panelMode !== ""
@@ -136,13 +136,6 @@ Item {
         }
     }
 
-    Component {
-        id: queueComponent
-        AuroraSessionPanel { id: sessionPanel }
-    }
-
-    Component {
-        id: lyricsComponent
-        AuroraLyricsPanel { id: lyricsPanel }
-    }
+    Component { id: queueComponent; AuroraSessionPanel {} }
+    Component { id: lyricsComponent; AuroraLyricsPanel {} }
 }
