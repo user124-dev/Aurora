@@ -2,7 +2,7 @@
 # Aurora installer / updater
 # Installs Aurora as a named standalone Quickshell configuration.
 # Required dependency: Quickshell >= 0.2.0.
-# Optional dependency: Cava for the spectrum.
+# Optional dependencies: Cava for the spectrum, curl for remote cover art/lyrics.
 
 set -u
 
@@ -36,6 +36,7 @@ Default installation:
 After installation:
   qs -c Aurora
   aurora-doctor
+  aurora-theme list
 EOF
 }
 
@@ -67,14 +68,13 @@ require_file() {
 }
 
 for file in \
-    VERSION shell.qml install.sh aurora-doctor \
+    VERSION shell.qml install.sh aurora-doctor aurora-theme \
     Core/AuroraState.qml Core/AuroraConfig.qml Core/AuroraPluginRegistry.qml \
     Components/Layout/AuroraPlayer.qml \
     Providers/AuroraMprisController.qml Providers/AuroraPlayerProvider.qml; do
     require_file "$file"
 done
 
-# Never install into the source repository or one of its children.
 if command -v realpath >/dev/null 2>&1; then
     source_real="$(realpath -m "$SCRIPT_DIR")"
     dest_real="$(realpath -m "$DEST_DIR")"
@@ -151,19 +151,16 @@ ask_optional() {
 
 MANAGER="$(package_manager)"
 
-# --------------------------- Required dependency ---------------------------
 if [[ -z "$QS_CMD" ]]; then
     if ! ask_required "Quickshell >= $MIN_QS_VERSION"; then
         error "Fallo de instalación: Quickshell es obligatorio."
         exit 1
     fi
-
     if ! install_package "$MANAGER" quickshell; then
         error "No fue posible instalar Quickshell automáticamente con el gestor disponible: $MANAGER"
         error "Instale Quickshell >= $MIN_QS_VERSION y vuelva a ejecutar ./install.sh."
         exit 1
     fi
-
     if command -v qs >/dev/null 2>&1; then QS_CMD="qs"
     elif command -v quickshell >/dev/null 2>&1; then QS_CMD="quickshell"
     else
@@ -174,8 +171,7 @@ fi
 
 QS_VERSION="$(command_version "$QS_CMD")"
 if [[ -n "$QS_VERSION" ]]; then
-    if version_at_least "$QS_VERSION"; then
-        success "Quickshell $QS_VERSION detectado."
+    if version_at_least "$QS_VERSION"; then success "Quickshell $QS_VERSION detectado."
     else
         error "Dependencia clave incompatible: Quickshell $QS_VERSION."
         error "Aurora requiere Quickshell >= $MIN_QS_VERSION."
@@ -185,19 +181,20 @@ else
     warning "No se pudo determinar la versión de Quickshell; se continuará con la validación runtime."
 fi
 
-# --------------------------- Optional dependency ---------------------------
 if command -v cava >/dev/null 2>&1; then
     success "Cava detectado: espectro disponible."
+elif ask_optional "Cava (espectro de audio)"; then
+    if install_package "$MANAGER" cava; then success "Cava instalado; espectro habilitado."; else warning "No fue posible instalar Cava automáticamente. Aurora continuará sin espectro."; fi
 else
-    if ask_optional "Cava (espectro de audio)"; then
-        if install_package "$MANAGER" cava; then
-            success "Cava instalado; espectro habilitado."
-        else
-            warning "No fue posible instalar Cava automáticamente. Aurora continuará sin espectro."
-        fi
-    else
-        warning "Cava no será instalado. Aurora continuará sin espectro."
-    fi
+    warning "Cava no será instalado. Aurora continuará sin espectro."
+fi
+
+if command -v curl >/dev/null 2>&1; then
+    success "curl detectado: carátulas remotas y letras disponibles."
+elif ask_optional "curl (carátulas remotas y letras)"; then
+    if install_package "$MANAGER" curl; then success "curl instalado."; else warning "No fue posible instalar curl; Aurora conservará las funciones locales y el estado opcional."; fi
+else
+    warning "curl no será instalado; letras y carátulas remotas pueden no estar disponibles."
 fi
 
 if $DRY_RUN; then
@@ -205,11 +202,9 @@ if $DRY_RUN; then
     exit 0
 fi
 
-# --------------------------- Stage and validate ----------------------------
 STAGE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/aurora-install.XXXXXX")"
 STAGE_DIR="$STAGE_ROOT/Aurora"
 BACKUP_DIR=""
-
 cleanup() { rm -rf -- "$STAGE_ROOT"; }
 trap cleanup EXIT
 
@@ -217,11 +212,8 @@ mkdir -p "$STAGE_DIR"
 cp -a "$SCRIPT_DIR"/. "$STAGE_DIR"/
 rm -rf "$STAGE_DIR/.git"
 rm -f "$STAGE_DIR/.qmlls.ini"
-chmod +x "$STAGE_DIR/install.sh" "$STAGE_DIR/aurora-doctor"
+chmod +x "$STAGE_DIR/install.sh" "$STAGE_DIR/aurora-doctor" "$STAGE_DIR/aurora-theme"
 
-# The whole managed installation is replaced as one unit. This automatically
-# restores missing files, replaces outdated files and removes obsolete Aurora
-# files while preserving the previous installation in a dated backup.
 mkdir -p "$(dirname -- "$DEST_DIR")"
 
 if [[ -d "$DEST_DIR" ]]; then
@@ -244,15 +236,11 @@ if ! mv -- "$STAGE_DIR" "$DEST_DIR"; then
     exit 1
 fi
 
-# External plugin location is intentionally preserved outside Aurora.
 mkdir -p "${CONFIG_BASE%/}/aurora/plugins"
-
-# Convenience command; no system-wide write is required.
 mkdir -p "$BIN_DIR"
 ln -sfn "$DEST_DIR/aurora-doctor" "$BIN_DIR/aurora-doctor"
+ln -sfn "$DEST_DIR/aurora-theme" "$BIN_DIR/aurora-theme"
 
-# Validate the installed payload before declaring success. Keep the diagnostic
-# visible so installation failures are actionable instead of opaque.
 info "Validando instalación..."
 if "$DEST_DIR/aurora-doctor" --installed; then
     success "Validación completada."
@@ -272,7 +260,7 @@ fi
 success "Aurora $AURORA_VERSION instalado/actualizado correctamente."
 info "Ejecutar: qs -c Aurora"
 info "Diagnóstico: aurora-doctor"
-info "Diagnóstico instalado: $BIN_DIR/aurora-doctor"
+info "Temas: aurora-theme list"
 
 if [[ ":${PATH:-}:" != *":$BIN_DIR:"* ]]; then
     warning "$BIN_DIR no está en PATH; el enlace existe y puede añadirse al PATH más adelante."
