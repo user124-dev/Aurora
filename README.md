@@ -20,6 +20,7 @@ El contexto conceptual del proyecto — identidad, filosofía e ideas — está 
 - Reproducción asistida cuando la fuente expone `next()` mediante MPRIS.
 - Letras planas y sincronizadas mediante un Provider desacoplado.
 - Sistema de plugins externo.
+- Temas runtime seleccionables desde terminal, persistidos fuera del código de Aurora.
 
 La cola de Aurora no depende de `org.mpris.MediaPlayer2.Playlists`: una fuente puede no exponer una playlist seleccionable. Aurora conserva su propio historial/cola y solo solicita acciones que la fuente realmente soporte.
 
@@ -28,15 +29,31 @@ La cola de Aurora no depende de `org.mpris.MediaPlayer2.Playlists`: una fuente p
 ```bash
 git clone https://github.com/user124-dev/Aurora.git
 cd Aurora
-chmod +x install.sh aurora-doctor
+chmod +x install.sh aurora-doctor aurora-theme
 ./install.sh
 ```
 
-El instalador coloca Aurora en `~/.config/quickshell/Aurora` y puede ejecutarse con:
+El instalador coloca Aurora en `~/.config/quickshell/Aurora` y crea comandos de usuario en `~/.local/bin`:
 
 ```bash
 qs -c Aurora
+aurora-doctor
+aurora-theme list
+aurora-theme set aurora
 ```
+
+Importante: `git pull` actualiza el repositorio fuente (`~/Downloads/Aurora` en un desarrollo local), mientras `qs -c Aurora` ejecuta la copia instalada en `~/.config/quickshell/Aurora`. Después de actualizar el repositorio hay que ejecutar `./install.sh` para que el runtime instalado reciba los cambios.
+
+## Temas
+
+Aurora incluye cuatro paletas base:
+
+- `aurora` — negro profundo y beige neutro, pensada como identidad principal.
+- `midnight` — azul oscuro/negro.
+- `paper` — clara y neutra.
+- `nebula` — oscura y cálida.
+
+El cambio se puede hacer en caliente con `aurora-theme set <tema>`. La preferencia se guarda en `~/.config/aurora/theme.json`, separada del runtime técnico.
 
 ## Dependencias
 
@@ -82,7 +99,8 @@ Aurora
 ├── Assets/
 ├── Blueprint/               # documentación técnica
 ├── Project/                 # identidad, filosofía e ideas
-└── aurora-doctor
+├── aurora-doctor
+└── aurora-theme
 ```
 
 Core y Components no conocen APIs privadas de End-4/ii. MPRIS y PipeWire se consumen mediante APIs oficiales de Quickshell; Cava, EasyEffects y el backend de letras son integraciones opcionales.
