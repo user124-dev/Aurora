@@ -1,26 +1,8 @@
 /*
- * ╔══════════════════════════════════════════════════════════════╗
- * ║                      Aurora Player                          ║
- * ╚══════════════════════════════════════════════════════════════╝
- *
- * File        : AuroraBackground.qml
- * Module      : Components/Layout
- * Component   : Widget Background
- * Version     : 0.1.0-dev
- *
- * Description:
- * The rounded panel behind everything else. A blurred, dimmed copy
- * of the current cover art sits behind the flat color when one is
- * available, so the widget reflects what's playing instead of
- * always looking the same regardless of track - the dimming
- * Rectangle on top keeps title/controls readable over busy art.
- * Falls back to the flat AuroraTheme color alone when nothing's
- * playing or no art has loaded yet. Reads AuroraState for the art,
- * AuroraTheme for color and AuroraConfig for shape/opacity - no
- * host imports. QtQuick.Effects is core Qt, not host-specific, so
- * the blur stays even outside "ii".
+ * AuroraBackground.qml — visual surface behind the widget content.
+ * Uses current MPRIS cover art when available and a deterministic theme
+ * surface otherwise. No host-specific imports.
  */
-
 import QtQuick
 import QtQuick.Effects
 import "../../Core"
@@ -32,10 +14,8 @@ Rectangle {
     border.width: AuroraConfig.backgroundBorderWidth
     border.color: AuroraTheme.colorOutline
     opacity: AuroraConfig.backgroundPanelOpacity
+    z: 0
 
-    // Rounds the blurred art + dim overlay below to match panel's
-    // radius - a plain `clip: true` only clips to the rectangular
-    // bounds, not the rounded corners themselves.
     layer.enabled: true
     layer.effect: MultiEffect {
         maskEnabled: true
@@ -53,7 +33,7 @@ Rectangle {
         source: AuroraState.connected ? AuroraState.coverArt : ""
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
-        cache: false
+        cache: true
         opacity: AuroraConfig.backgroundArtOpacity
 
         layer.enabled: true
@@ -65,8 +45,6 @@ Rectangle {
     }
 
     Rectangle {
-        // Keeps foreground content legible over whatever the art
-        // above happens to look like.
         anchors.fill: parent
         color: AuroraTheme.colorBackground
         opacity: AuroraConfig.backgroundDimOpacity
