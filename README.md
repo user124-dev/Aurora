@@ -1,16 +1,29 @@
 # Aurora
 
-Aurora es un widget multimedia para **Quickshell** con identidad propia. Combina MPRIS para reproducción y metadata con Cava para el espectro opcional, y presenta tres modos visuales: Compact, Hover y Expanded.
+Aurora es un widget multimedia para **Quickshell** con identidad propia. Combina MPRIS para reproducción y metadata, PipeWire para estado del audio del sistema y Cava para el espectro opcional.
 
 ## Objetivo
 
 Aurora nació del estudio de arquitecturas de Quickshell y End-4. El objetivo es aprender de esos patrones sin depender de End-4/ii en el runtime: Aurora mantiene su propia arquitectura, API y sistema de distribución.
 
-El contexto conceptual del proyecto — identidad, filosofía y backlog de ideas — está separado de la especificación técnica en [`Project/`](./Project/).
+El contexto conceptual del proyecto — identidad, filosofía e ideas — está separado de la especificación técnica en [`Project/`](./Project/).
+
+## Funciones actuales
+
+- MPRIS para Spotify, MPV, VLC, navegadores y otros reproductores compatibles.
+- Deduplicación de fuentes que representan el mismo audio.
+- Compact / Hover / Expanded.
+- Espectro con Cava y respuesta configurable.
+- Integración observacional con PipeWire mediante la API oficial de Quickshell.
+- Presets opcionales de EasyEffects con advertencia de ownership.
+- Cola e historial de sesión propios de Aurora por fuente.
+- Reproducción asistida cuando la fuente expone `next()` mediante MPRIS.
+- Letras planas y sincronizadas mediante un Provider desacoplado.
+- Sistema de plugins externo.
+
+La cola de Aurora no depende de `org.mpris.MediaPlayer2.Playlists`: una fuente puede no exponer una playlist seleccionable. Aurora conserva su propio historial/cola y solo solicita acciones que la fuente realmente soporte.
 
 ## Instalación
-
-La experiencia objetivo es de pocos pasos:
 
 ```bash
 git clone https://github.com/user124-dev/Aurora.git
@@ -19,19 +32,11 @@ chmod +x install.sh aurora-doctor
 ./install.sh
 ```
 
-El instalador coloca Aurora en:
-
-```text
-~/.config/quickshell/Aurora
-```
-
-y puede ejecutarse con:
+El instalador coloca Aurora en `~/.config/quickshell/Aurora` y puede ejecutarse con:
 
 ```bash
 qs -c Aurora
 ```
-
-`install.sh` detecta dependencias, pregunta antes de instalar dependencias clave u opcionales, actualiza instalaciones existentes, restaura archivos faltantes y realiza rollback si una actualización falla.
 
 ## Dependencias
 
@@ -39,14 +44,13 @@ qs -c Aurora
 
 - **Quickshell >= 0.2.0** — necesario para ejecutar Aurora.
 
-Si falta, el instalador pregunta si desea instalarlo. Si el usuario rechaza una dependencia clave, la instalación falla y no deja una instalación parcial.
+### Opcionales
 
-### Opcional
+- **Cava** — espectro de audio.
+- **EasyEffects** — presets de efectos/ecualización.
+- **curl** — backend inicial de letras y cache de carátulas remotas.
 
-- **Cava** — proporciona el espectro de audio.
-- **EasyEffects** — habilita la integración opcional de presets del ecualizador.
-
-Si una dependencia opcional no está disponible, Aurora conserva las demás funciones y utiliza su comportamiento de ausencia elegante correspondiente.
+Si una dependencia opcional no está disponible, Aurora conserva las demás funciones y degrada únicamente la capacidad correspondiente.
 
 ## Diagnóstico
 
@@ -54,30 +58,9 @@ Si una dependencia opcional no está disponible, Aurora conserva las demás func
 ./aurora-doctor
 ```
 
-Doctor es **read-only** y audita tanto el entorno como el repositorio. Comprueba:
+Doctor es read-only y audita el entorno y el repositorio: entrypoint, estructura, documentación, imports host-specific, MPRIS, PipeWire, Cava, EasyEffects, instalador, ShellCheck, estado Git y coherencia del Blueprint.
 
-- entrypoint standalone;
-- estructura y archivos principales de Aurora;
-- inventario del repositorio y superficies QML/documentales;
-- referencias locales rotas en Markdown;
-- referencias a archivos runtime que ya no existen;
-- referencias heredadas de End-4/ii y otras APIs obsoletas conocidas;
-- imports host-specific en el runtime;
-- declaraciones de singleton de Core;
-- marcadores de mantenimiento;
-- archivos temporales o backups que puedan ocultar implementaciones duplicadas;
-- versión de Quickshell;
-- uso de `Quickshell.Services.Mpris`;
-- Cava;
-- D-Bus/MPRIS;
-- sesión Wayland/X11;
-- compositor detectado;
-- instalador y ShellCheck;
-- estado Git local;
-- formato de `VERSION`;
-- coherencia del Blueprint.
-
-Las referencias históricas a módulos privados de End-4/ii dentro de `Blueprint/` o `Research/` pueden aparecer como advertencias porque esos documentos explican decisiones o material de referencia. Lo que bloquea el runtime son las dependencias host-specific dentro del código ejecutable.
+Las referencias históricas a módulos privados de End-4/ii dentro de `Blueprint/` o `Research/` pueden aparecer como advertencias. Lo que bloquea el runtime son las dependencias host-specific dentro del código ejecutable.
 
 ## Arquitectura
 
@@ -90,8 +73,11 @@ Aurora
 │   ├── AuroraMprisController.qml
 │   ├── AuroraPlayerProvider.qml
 │   ├── AuroraAudioProvider.qml
-│   ├── AuroraThemeProvider.qml
+│   ├── AuroraPipewireProvider.qml
+│   ├── AuroraLyricsProvider.qml
 │   └── AuroraEqualizerProvider.qml
+├── Session/
+│   └── AuroraSessionQueue.qml
 ├── Themes/
 ├── Assets/
 ├── Blueprint/               # documentación técnica
@@ -99,17 +85,17 @@ Aurora
 └── aurora-doctor
 ```
 
-El Core y los Components no conocen APIs privadas de End-4/ii. MPRIS se consume mediante la API oficial de Quickshell y Cava es opcional.
+Core y Components no conocen APIs privadas de End-4/ii. MPRIS y PipeWire se consumen mediante APIs oficiales de Quickshell; Cava, EasyEffects y el backend de letras son integraciones opcionales.
 
 ## Compatibilidad
 
-Aurora no intenta duplicar cada compositor. La estrategia actual es aprovechar las APIs generales de Quickshell y estándares multimedia, manteniendo cualquier adapter específico en la frontera de infraestructura.
+Spotify, MPV, VLC y navegadores se consideran primero fuentes MPRIS. Un plugin específico solo se justifica cuando una aplicación ofrece una capacidad que MPRIS no expone.
 
-La compatibilidad futura con otros compositores, shells o ecosistemas es un objetivo arquitectónico, no una afirmación de soporte ya implementado. Un entorno solo se considerará soportado cuando exista una integración real y una prueba verificable.
+Aurora no afirma soporte para una fuente hasta que exista una integración real y una prueba verificable.
 
 ## Documentación técnica
 
-La especificación técnica está en [`Blueprint/`](./Blueprint/):
+La especificación está en [`Blueprint/`](./Blueprint/):
 
 - [`ARCHITECTURE.md`](./Blueprint/ARCHITECTURE.md)
 - [`API.md`](./Blueprint/API.md)
@@ -117,9 +103,8 @@ La especificación técnica está en [`Blueprint/`](./Blueprint/):
 - [`PROVIDERS.md`](./Blueprint/PROVIDERS.md)
 - [`INSTALL.md`](./Blueprint/INSTALL.md)
 - [`DECISIONS.md`](./Blueprint/DECISIONS.md)
-- [`CONVENTIONS.md`](./Blueprint/CONVENTIONS.md)
-- [`STYLEGUIDE.md`](./Blueprint/STYLEGUIDE.md)
-- [`THEMES.md`](./Blueprint/THEMES.md)
+- [`DECISIONS_CURRENT.md`](./Blueprint/DECISIONS_CURRENT.md)
+- [`ROADMAP.md`](./Blueprint/ROADMAP.md)
 
 ## Contexto del proyecto
 
@@ -131,9 +116,9 @@ Los documentos que no forman parte del contrato técnico están en [`Project/`](
 
 ## Estado
 
-**Work in Progress — etapa Runtime & Distribution.**
+**Work in Progress — etapa Runtime, Distribution & Media Experience.**
 
-La prioridad actual es conseguir una instalación reproducible, standalone, actualizable y diagnosticable antes de ampliar funcionalidades.
+La arquitectura standalone ya está establecida. Las siguientes iteraciones se centran en experiencia multimedia avanzada, persistencia opcional de sesión, backends de letras y control seguro de audio.
 
 ## Licencia
 
