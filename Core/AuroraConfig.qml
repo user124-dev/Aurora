@@ -75,6 +75,7 @@ QtObject {
     readonly property bool cavaIntegrationEnabled: true
     readonly property bool effectsIntegrationEnabled: true
     readonly property bool effectsRestoreEnabled: false
+    readonly property int pipewireRefreshInterval: 500
 
     // Session layer is intentionally in-memory for now. Persistence can be
     // added later without changing the queue contract or UI.
