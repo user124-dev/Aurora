@@ -18,11 +18,6 @@ Singleton {
     id: provider
 
     property string selectedIdentity: ""
-
-    // Cover art is cached locally instead of binding Image.source directly
-    // to a remote MPRIS trackArtUrl. Browser integrations can replace their
-    // temporary artwork file during a track change, which races an async
-    // Image loader. A stable local copy avoids that race for HTTP(S) art.
     readonly property string artCacheDirectory: Quickshell.cachePath("cover-art")
     property string pendingArtRequest: ""
     readonly property var meaningfulPlayers: computeMeaningfulPlayers(AuroraMprisController.players ?? [])
@@ -45,6 +40,8 @@ Singleton {
         AuroraState.duration = 0
         AuroraState.position = 0
         AuroraState.canSeek = false
+        AuroraState.canGoNext = false
+        AuroraState.canGoPrevious = false
         AuroraState.shuffleEnabled = false
         AuroraState.repeatMode = "None"
         provider.pendingArtRequest = ""
@@ -62,8 +59,6 @@ Singleton {
         const albumA = normalized(a?.trackAlbum)
         const albumB = normalized(b?.trackAlbum)
 
-        // Prefer strong metadata matching. A title-only heuristic can merge
-        // unrelated songs that happen to share a name.
         if (titleA && titleB) {
             const sameTitle = titleA === titleB || titleA.includes(titleB) || titleB.includes(titleA)
             const sameArtist = !artistA || !artistB || artistA === artistB || artistA.includes(artistB) || artistB.includes(artistA)
@@ -71,8 +66,6 @@ Singleton {
             return sameTitle && sameArtist && sameAlbum
         }
 
-        // Metadata-poor browser players can still be recognized when their
-        // position and duration are close enough to represent the same stream.
         return Math.abs((a?.position ?? 0) - (b?.position ?? 0)) <= AuroraConfig.duplicatePositionTolerance &&
                Math.abs((a?.length ?? 0) - (b?.length ?? 0)) <= AuroraConfig.duplicateLengthTolerance &&
                (a?.length ?? 0) > 0 && (b?.length ?? 0) > 0
@@ -188,6 +181,8 @@ Singleton {
         AuroraState.duration = player.length ?? 0
         AuroraState.position = player.position ?? 0
         AuroraState.canSeek = !!player.canSeek && !!player.positionSupported
+        AuroraState.canGoNext = !!player.canGoNext
+        AuroraState.canGoPrevious = !!player.canGoPrevious
         AuroraState.shuffleEnabled = player.shuffleSupported ? player.shuffle : false
         AuroraState.repeatMode = player.loopSupported ? String(player.loopState) : "None"
 
@@ -243,8 +238,6 @@ Singleton {
             return
         }
 
-        // Local/data artwork should stay untouched. Only remote HTTP(S)
-        // resources need a downloaded stable copy.
         if (!/^https?:\/\//i.test(url)) {
             provider.pendingArtRequest = url
             AuroraState.coverArt = url
@@ -255,17 +248,11 @@ Singleton {
             return
 
         provider.pendingArtRequest = url
-
         if (artCache.running)
             artCache.running = false
 
         artCache.targetUrl = url
         artCache.cachedPath = provider.artCacheDirectory + "/" + Qt.md5(url)
-
-        // Do not interpolate the URL into a shell command. Passing each
-        // argument directly prevents shell metacharacters or quotes in a
-        // remote URL from becoming executable syntax. `--create-dirs` lets
-        // curl create Aurora's cache directory without a shell wrapper.
         artCache.command = [
             "curl", "-fsSL",
             "--create-dirs",
@@ -286,14 +273,10 @@ Singleton {
         onExited: (exitCode, exitStatus) => {
             if (artCache.targetUrl !== provider.pendingArtRequest)
                 return
-
             AuroraState.coverArt = exitCode === 0 ? Qt.resolvedUrl(artCache.cachedPath) : ""
         }
     }
 
-    // Only instantiate the state file when the feature is enabled. The
-    // default remains false, avoiding a harmless but noisy missing-file
-    // warning on first startup.
     Loader {
         id: lastSourceLoader
         active: AuroraConfig.rememberLastSource
