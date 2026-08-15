@@ -1,17 +1,6 @@
 /*
- * ╔══════════════════════════════════════════════════════════════╗
- * ║                      Aurora Player                          ║
- * ╚══════════════════════════════════════════════════════════════╝
- *
- * File        : AuroraConfig.qml
- * Module      : Core
- * Component   : Configuration
- * Version     : 0.1.0-dev
- *
- * Description:
- * Global configuration shared across every Aurora component.
+ * AuroraConfig.qml — global configuration.
  */
-
 pragma Singleton
 
 import QtQuick
@@ -23,7 +12,6 @@ QtObject {
 
     readonly property int themeAurora: 0
     readonly property int themeSystem: 1
-
     property int themeMode: themeAurora
 
     readonly property int compactWidth: 48
@@ -31,12 +19,12 @@ QtObject {
     readonly property int hoverWidth: 360
     readonly property int hoverHeight: 72
     readonly property int expandedWidth: 620
-    readonly property int expandedHeight: 380
+    readonly property int expandedHeight: 500
 
     readonly property int widgetPadding: 8
     readonly property int widgetSpacing: 10
     readonly property int expandedPadding: 20
-    readonly property int expandedSpacing: 14
+    readonly property int expandedSpacing: 10
 
     readonly property int coverSize: 110
     readonly property real coverRadius: 18
@@ -70,21 +58,33 @@ QtObject {
     readonly property real spectrumIdleRestLevel: 0.06
     readonly property real spectrumIdleOpacity: 0.3
     readonly property int spectrumAnimation: 70
-    readonly property int expandedSpectrumHeight: 90
+    readonly property int expandedSpectrumHeight: 72
 
-    // EasyEffects "Aurora is managing a preset" banner (AuroraExpandedView).
+    // Expanded feature panels
+    readonly property int featurePanelHeight: 118
+    readonly property int featureChipHeight: 24
+
+    // EasyEffects warning
     readonly property int effectsWarningHeight: 30
     readonly property int effectsWarningBorderWidth: 1
     readonly property real effectsWarningOpacity: 0.92
     readonly property int effectsWarningPadding: 10
 
-    // Audio architecture. Quickshell's PipeWire service is the primary
-    // system-audio integration. Cava remains an optional sample source
-    // because Quickshell 0.2.x does not expose the v0.3 peak-detection API.
+    // Audio architecture
     readonly property bool pipewireIntegrationEnabled: true
     readonly property bool cavaIntegrationEnabled: true
     readonly property bool effectsIntegrationEnabled: true
     readonly property bool effectsRestoreEnabled: false
+
+    // Session layer is intentionally in-memory for now. Persistence can be
+    // added later without changing the queue contract or UI.
+    readonly property bool sessionQueueEnabled: true
+    readonly property int sessionHistoryLimit: 50
+
+    // Lyrics are optional and backend-driven. No lyrics backend is allowed
+    // to become a hard dependency of the media widget.
+    readonly property bool lyricsIntegrationEnabled: true
+    readonly property int lyricsRefreshInterval: 120
 
     readonly property int controlButtonSize: 26
     readonly property int playButtonSize: 32
@@ -127,6 +127,7 @@ QtObject {
     readonly property real duplicateLengthTolerance: 2
 
     readonly property int positionUpdateInterval: 1000
+    readonly property int mprisRefreshInterval: 250
     readonly property int fastAnimation: 150
     readonly property int normalAnimation: 250
     readonly property int slowAnimation: 450
@@ -134,8 +135,5 @@ QtObject {
     readonly property int hideDelay: 250
 
     property bool developerMode: false
-
-    // How deep AuroraEqualizerProvider scans EasyEffects' output-preset
-    // folder for `.json` files.
     readonly property int equalizerPresetScanDepth: 1
 }
