@@ -1,0 +1,15 @@
+{
+  "name": "aurora",
+  "background": "#0e1319",
+  "onBackground": "#efe7dc",
+  "container": "#1b222b",
+  "muted": "#9aa3ad",
+  "primary": "#efe3d8",
+  "onPrimary": "#171310",
+  "outline": "#39434f",
+  "fontFamily": "sans-serif",
+  "fontSizeSmall": 11,
+  "fontSizeNormal": 13,
+  "fontSizeLarge": 15,
+  "fontSizeHuge": 22
+}
