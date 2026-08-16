@@ -1,0 +1,15 @@
+{
+  "name": "midnight",
+  "background": "#070b10",
+  "onBackground": "#e6edf3",
+  "container": "#111923",
+  "muted": "#8290a0",
+  "primary": "#9cc9ff",
+  "onPrimary": "#07111d",
+  "outline": "#293746",
+  "fontFamily": "sans-serif",
+  "fontSizeSmall": 11,
+  "fontSizeNormal": 13,
+  "fontSizeLarge": 15,
+  "fontSizeHuge": 22
+}
