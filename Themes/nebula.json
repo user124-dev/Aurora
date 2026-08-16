@@ -1,0 +1,15 @@
+{
+  "name": "nebula",
+  "background": "#171319",
+  "onBackground": "#f0e4dc",
+  "container": "#282027",
+  "muted": "#aa98a2",
+  "primary": "#e8b9a6",
+  "onPrimary": "#21120d",
+  "outline": "#493942",
+  "fontFamily": "sans-serif",
+  "fontSizeSmall": 11,
+  "fontSizeNormal": 13,
+  "fontSizeLarge": 15,
+  "fontSizeHuge": 22
+}
