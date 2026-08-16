@@ -1,0 +1,15 @@
+{
+  "name": "paper",
+  "background": "#f2eee7",
+  "onBackground": "#26231f",
+  "container": "#e3ded4",
+  "muted": "#777066",
+  "primary": "#514b43",
+  "onPrimary": "#f8f5ef",
+  "outline": "#c8c0b4",
+  "fontFamily": "sans-serif",
+  "fontSizeSmall": 11,
+  "fontSizeNormal": 13,
+  "fontSizeLarge": 15,
+  "fontSizeHuge": 22
+}
