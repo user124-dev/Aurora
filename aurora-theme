@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Aurora theme selector. Stores user preference outside the runtime tree.
+# Aurora theme selector. Theme definitions live in the repository Themes/ tree;
+# the selected name is persisted outside the runtime tree.
 
 set -u
 
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+THEMES_DIR="$SCRIPT_DIR/Themes"
 CONFIG_BASE="${XDG_CONFIG_HOME:-${HOME}/.config}"
 THEME_DIR="${CONFIG_BASE%/}/aurora"
 THEME_FILE="$THEME_DIR/theme.json"
@@ -17,24 +20,31 @@ Usage:
   aurora-theme set <theme>
   aurora-theme reset
 
-Themes:
-  aurora    Black-hole inspired neutral/beige palette (default)
-  midnight  Deep blue/black palette
-  paper     Light neutral palette
-  nebula    Dark warm/pink palette
+Theme definitions are read from Aurora/Themes/*.json.
 EOF
 }
 
+list_themes() {
+    local file name found=0
+    shopt -s nullglob
+    for file in "$THEMES_DIR"/*.json; do
+        name="$(basename "$file" .json)"
+        printf '%s\n' "$name"
+        found=1
+    done
+    shopt -u nullglob
+    if [[ "$found" -eq 0 ]]; then
+        printf 'aurora\n'
+    fi
+}
+
 is_valid() {
-    case "$1" in
-        aurora|midnight|paper|nebula) return 0 ;;
-        *) return 1 ;;
-    esac
+    [[ -f "$THEMES_DIR/$1.json" ]]
 }
 
 case "${1:-}" in
     list)
-        printf '%s\n' aurora midnight paper nebula
+        list_themes
         ;;
     current)
         if [[ -f "$THEME_FILE" ]]; then
@@ -45,7 +55,9 @@ case "${1:-}" in
         ;;
     set)
         if [[ -z "${2:-}" ]] || ! is_valid "$2"; then
-            printf 'Tema inválido. Usa: aurora, midnight, paper o nebula.\n' >&2
+            printf 'Tema inválido. Usa uno de: ' >&2
+            list_themes | tr '\n' ' ' >&2
+            printf '\n' >&2
             exit 2
         fi
         mkdir -p "$THEME_DIR"
