@@ -1,29 +1,50 @@
 # Temas en Aurora
 
-Aurora separa el contrato visual (`Core/AuroraTheme.qml`) de la fuente de valores (`AuroraThemeProvider`). Los componentes nunca deben leer directamente el tema de un host.
+Aurora separa el contrato visual (`Core/AuroraTheme.qml`) de la fuente de valores (`Themes/*.json`) mediante `AuroraThemeProvider`. Los componentes nunca deben leer directamente archivos de tema ni depender de un host.
 
 ## Estructura actual
 
 ```text
 Themes/
-└── Default/
-    └── Theme.qml
+├── aurora.json
+├── midnight.json
+├── paper.json
+└── nebula.json
 ```
 
-`Default` es el tema standalone y la fuente predeterminada de Aurora.
+Cada archivo define únicamente datos visuales. `Core/AuroraTheme.qml` conserva el contrato estable que consumen los componentes y `Providers/AuroraThemeProvider.qml` carga la definición seleccionada desde `Quickshell.shellDir + "/Themes"`.
+
+## Selección
+
+La selección persistente se guarda fuera del runtime en:
+
+```text
+~/.config/aurora/theme.json
+```
+
+Se administra mediante:
+
+```text
+aurora-theme list
+aurora-theme current
+aurora-theme set <theme>
+aurora-theme reset
+```
+
+`aurora-theme list` descubre automáticamente los archivos `Themes/*.json`, por lo que añadir un nuevo tema no requiere modificar un `switch` de QML.
 
 ## Modos
 
 `AuroraConfig.themeMode` define el modo lógico:
 
-- `themeAurora` — usa la paleta incluida en Aurora.
-- `themeSystem` — reservado para adapters de host. En standalone mantiene la paleta Aurora para evitar dependencias externas.
+- `themeAurora` — usa el tema seleccionado de la colección Aurora.
+- `themeSystem` — reservado para adapters de host. En standalone mantiene la colección local para evitar dependencias externas.
 
-La implementación actual no importa `qs.modules.common` ni ningún singleton de End-4/ii.
+La implementación no importa `qs.modules.common` ni ningún singleton de End-4/ii.
 
 ## Contrato
 
-Los componentes consumen:
+Los componentes consumen exclusivamente:
 
 ```qml
 AuroraTheme.colorBackground
@@ -35,10 +56,10 @@ No deben importar `Appearance`, Material Symbols u otro sistema visual del host.
 
 ## Crear un tema
 
-1. Duplicar `Themes/Default/` en `Themes/<Nombre>/`.
-2. Mantener el contrato de propiedades de `AuroraTheme`.
-3. Evitar lógica de runtime dentro del archivo de tema.
-4. Documentar autor, licencia y cambios visuales.
-5. Validar el tema con `aurora-doctor`.
+1. Crear `Themes/<nombre>.json`.
+2. Mantener las propiedades del contrato de `AuroraTheme`.
+3. Mantener el archivo como datos, sin lógica de runtime.
+4. Validar JSON y ejecutar `aurora-theme list`.
+5. Ejecutar `aurora-doctor` antes de integrar el cambio.
 
 Los adapters de temas específicos de compositor o shell deben mantenerse fuera del Core y añadirse solo cuando exista una integración real que probar.
