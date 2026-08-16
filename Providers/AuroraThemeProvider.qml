@@ -1,8 +1,9 @@
 /*
  * Aurora Theme Provider
  *
- * Theme selection is persisted outside the runtime tree so the widget stays
- * portable. Components only see AuroraTheme; they never read this file.
+ * Theme definitions live in the repository's Themes/ directory. Components
+ * consume AuroraTheme only; this provider is the runtime bridge between the
+ * selected theme file and the visual contract.
  */
 pragma Singleton
 
@@ -16,64 +17,57 @@ Singleton {
 
     readonly property string configPath:
         (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/aurora/theme.json"
+    readonly property string themeDirectory: Quickshell.shellDir + "/Themes"
     readonly property bool usingSystemTheme: AuroraConfig.themeMode === AuroraConfig.themeSystem
     property string activeTheme: "aurora"
     property bool initialized: false
+    property string requestedTheme: "aurora"
 
-    function palette(name) {
-        switch (name) {
-        case "midnight":
-            return {
-                background: "#070b10", onBackground: "#e6edf3", container: "#111923",
-                muted: "#8290a0", primary: "#9cc9ff", onPrimary: "#07111d", outline: "#293746"
-            }
-        case "paper":
-            return {
-                background: "#f2eee7", onBackground: "#26231f", container: "#e3ded4",
-                muted: "#777066", primary: "#514b43", onPrimary: "#f8f5ef", outline: "#c8c0b4"
-            }
-        case "nebula":
-            return {
-                background: "#171319", onBackground: "#f0e4dc", container: "#282027",
-                muted: "#aa98a2", primary: "#e8b9a6", onPrimary: "#21120d", outline: "#493942"
-            }
-        default:
-            return {
-                background: "#0e1319", onBackground: "#efe7dc", container: "#1b222b",
-                muted: "#9aa3ad", primary: "#efe3d8", onPrimary: "#171310", outline: "#39434f"
-            }
+    function fallbackPalette() {
+        return {
+            name: "aurora",
+            background: "#0e1319", onBackground: "#efe7dc", container: "#1b222b",
+            muted: "#9aa3ad", primary: "#efe3d8", onPrimary: "#171310", outline: "#39434f",
+            fontFamily: "sans-serif", fontSizeSmall: 11, fontSizeNormal: 13,
+            fontSizeLarge: 15, fontSizeHuge: 22
         }
     }
 
-    function apply(name) {
-        const p = palette(name)
-        activeTheme = ["aurora", "midnight", "paper", "nebula"].includes(name) ? name : "aurora"
-        AuroraTheme.colorBackground = p.background
-        AuroraTheme.colorOnBackground = p.onBackground
-        AuroraTheme.colorContainer = p.container
-        AuroraTheme.colorMuted = p.muted
-        AuroraTheme.colorPrimary = p.primary
-        AuroraTheme.colorOnPrimary = p.onPrimary
-        AuroraTheme.colorOutline = p.outline
-        AuroraTheme.fontFamily = "sans-serif"
-        AuroraTheme.fontSizeSmall = 11
-        AuroraTheme.fontSizeNormal = 13
-        AuroraTheme.fontSizeLarge = 15
-        AuroraTheme.fontSizeHuge = 22
+    function applyPalette(p) {
+        const palette = p || provider.fallbackPalette()
+        const name = String(palette.name || provider.requestedTheme || "aurora")
+        activeTheme = name
+        AuroraTheme.colorBackground = String(palette.background || "#0e1319")
+        AuroraTheme.colorOnBackground = String(palette.onBackground || "#efe7dc")
+        AuroraTheme.colorContainer = String(palette.container || "#1b222b")
+        AuroraTheme.colorMuted = String(palette.muted || "#9aa3ad")
+        AuroraTheme.colorPrimary = String(palette.primary || "#efe3d8")
+        AuroraTheme.colorOnPrimary = String(palette.onPrimary || "#171310")
+        AuroraTheme.colorOutline = String(palette.outline || "#39434f")
+        AuroraTheme.fontFamily = String(palette.fontFamily || "sans-serif")
+        AuroraTheme.fontSizeSmall = Number(palette.fontSizeSmall || 11)
+        AuroraTheme.fontSizeNormal = Number(palette.fontSizeNormal || 13)
+        AuroraTheme.fontSizeLarge = Number(palette.fontSizeLarge || 15)
+        AuroraTheme.fontSizeHuge = Number(palette.fontSizeHuge || 22)
+    }
+
+    function loadTheme(name) {
+        const normalized = String(name || "aurora").trim().toLowerCase()
+        provider.requestedTheme = normalized || "aurora"
+        themeDefinition.path = themeDirectory + "/" + provider.requestedTheme + ".json"
+    }
+
+    function applyStoredTheme() {
+        provider.loadTheme(themeAdapter.name || "aurora")
     }
 
     function initialize() {
         if (initialized)
             return
         initialized = true
-        apply("aurora")
+        provider.applyPalette(provider.fallbackPalette())
         themeFile.reload()
-        console.log("[Aurora] ThemeProvider initialized")
-    }
-
-    function applyStoredTheme() {
-        const requested = themeAdapter.name || "aurora"
-        provider.apply(requested)
+        console.log("[Aurora] ThemeProvider initialized; themes: " + provider.themeDirectory)
     }
 
     FileView {
@@ -87,6 +81,27 @@ Singleton {
         JsonAdapter {
             id: themeAdapter
             property string name: "aurora"
+        }
+    }
+
+    FileView {
+        id: themeDefinition
+        path: ""
+        watchChanges: true
+        printErrors: false
+        onLoaded: {
+            try {
+                const parsed = JSON.parse(themeDefinition.text())
+                provider.applyPalette(parsed)
+            } catch (error) {
+                console.warn("[Aurora] Invalid theme definition: " + provider.requestedTheme)
+                provider.applyPalette(provider.fallbackPalette())
+            }
+        }
+        onFileChanged: reload()
+        onLoadFailed: {
+            console.warn("[Aurora] Theme not found: " + provider.requestedTheme + "; using aurora fallback")
+            provider.applyPalette(provider.fallbackPalette())
         }
     }
 
