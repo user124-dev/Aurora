@@ -170,47 +170,48 @@ QtObject {
         AuroraState.sessionQueueIndex = queue.length > 0 ? 0 : -1
     }
 
-    Connections {
-        target: AuroraState
+    function handleTrackChanged() {
+        const entry = session.entryFromState()
+        if (!entry)
+            return
 
-        function onTrackChanged() {
-            const entry = session.entryFromState()
-            if (!entry)
-                return
+        session.recordHistory(entry)
 
-            session.recordHistory(entry)
-
-            if (session.pendingPlaybackId) {
-                if (entry.id === session.pendingPlaybackId) {
-                    const next = cloneMap(session.queueBySource)
-                    const key = session.sourceKey(entry.source)
-                    next[key] = (next[key] || []).filter(item => item.id !== entry.id)
-                    session.queueBySource = next
-                    session.pendingPlaybackId = ""
-                    AuroraState.sessionPlaybackStatus = "Playing"
-                    AuroraState.sessionPlaybackMessage = "Elemento de cola confirmado por la fuente."
-                } else {
-                    AuroraState.sessionPlaybackStatus = "SourceControlled"
-                    AuroraState.sessionPlaybackMessage = "La fuente avanzó, pero no confirmó el elemento solicitado."
-                }
-            }
-
-            session.syncState()
-        }
-
-        function onConnectionChanged(connected) {
-            if (!connected) {
+        if (session.pendingPlaybackId) {
+            if (entry.id === session.pendingPlaybackId) {
+                const next = cloneMap(session.queueBySource)
+                const key = session.sourceKey(entry.source)
+                next[key] = (next[key] || []).filter(item => item.id !== entry.id)
+                session.queueBySource = next
                 session.pendingPlaybackId = ""
-                AuroraState.sessionPlaybackStatus = "Idle"
-                AuroraState.sessionPlaybackMessage = "Sin fuente MPRIS activa."
+                AuroraState.sessionPlaybackStatus = "Playing"
+                AuroraState.sessionPlaybackMessage = "Elemento de cola confirmado por la fuente."
+            } else {
+                AuroraState.sessionPlaybackStatus = "SourceControlled"
+                AuroraState.sessionPlaybackMessage = "La fuente avanzó, pero no confirmó el elemento solicitado."
             }
-            session.syncState()
         }
 
-        function onSelectPlayer() {
-            session.syncState()
-        }
+        session.syncState()
     }
 
-    Component.onCompleted: syncState()
+    function handleConnectionChanged(connected) {
+        if (!connected) {
+            session.pendingPlaybackId = ""
+            AuroraState.sessionPlaybackStatus = "Idle"
+            AuroraState.sessionPlaybackMessage = "Sin fuente MPRIS activa."
+        }
+        session.syncState()
+    }
+
+    function handlePlayerSelection() {
+        session.syncState()
+    }
+
+    Component.onCompleted: {
+        AuroraState.trackChanged.connect(session.handleTrackChanged)
+        AuroraState.connectionChanged.connect(session.handleConnectionChanged)
+        AuroraState.selectPlayer.connect(session.handlePlayerSelection)
+        session.syncState()
+    }
 }
