@@ -13,9 +13,10 @@
 pragma Singleton
 
 import QtQuick
+import Quickshell
 import "../Core"
 
-QtObject {
+Singleton {
     id: session
 
     readonly property int historyLimit: 50
@@ -208,10 +209,12 @@ QtObject {
         session.syncState()
     }
 
-    Component.onCompleted: {
-        AuroraState.trackChanged.connect(session.handleTrackChanged)
-        AuroraState.connectionChanged.connect(session.handleConnectionChanged)
-        AuroraState.selectPlayer.connect(session.handlePlayerSelection)
-        session.syncState()
+    Connections {
+        target: AuroraState
+        function onTrackChanged() { session.handleTrackChanged() }
+        function onConnectionChanged(connected) { session.handleConnectionChanged(connected) }
+        function onSelectPlayer() { session.handlePlayerSelection() }
     }
+
+    Component.onCompleted: session.syncState()
 }
