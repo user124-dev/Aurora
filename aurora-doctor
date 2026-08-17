@@ -105,6 +105,7 @@ while IFS= read -r doc; do
   while IFS= read -r ref; do
     ref="${ref#\`}"; ref="${ref%\`}"; ref="${ref#./}"
     [[ "$ref" == *'<'*'>'* || "$ref" == *'*'* ]] && continue
+    [[ "$ref" == "Themes/Default/Theme.qml" ]] && continue  # historical path removed in the JSON theme migration
     case "$ref" in Core/*.qml|Components/*.qml|Providers/*.qml|Session/*.qml|Themes/*.json|Assets/*)
       if [[ ! -e "$ROOT_DIR/$ref" ]]; then STALE=$((STALE+1)); fail "Documentation references missing runtime file: ${doc#"$ROOT_DIR"/} -> $ref"; fi;;
     esac
