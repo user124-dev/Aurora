@@ -77,6 +77,14 @@ Singleton {
         printErrors: false
         onLoaded: provider.applyStoredTheme()
         onFileChanged: reload()
+        onLoadFailed: {
+            // Expected on a fresh install, before `aurora-theme set` has ever
+            // run: no selection file yet. initialize() already applied the
+            // fallback palette synchronously, so nothing is left unstyled.
+            // If the file later becomes unreadable, keep the last known-good
+            // palette rather than replacing it with transparent/undefined data.
+            console.log("[Aurora] " + provider.configPath + " unavailable; keeping active theme: " + provider.activeTheme)
+        }
 
         JsonAdapter {
             id: themeAdapter
