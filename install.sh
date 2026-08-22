@@ -10,6 +10,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 CONFIG_BASE="${XDG_CONFIG_HOME:-${HOME}/.config}"
 DEFAULT_TARGET="${CONFIG_BASE%/}/quickshell/Aurora"
 BIN_DIR="${HOME}/.local/bin"
+AUTOSTART_DIR="${CONFIG_BASE%/}/autostart"
+AUTOSTART_FILE="$AUTOSTART_DIR/aurora.desktop"
 TARGET_DIR="$DEFAULT_TARGET"
 BACKUP_ENABLED=true
 DRY_RUN=false
@@ -33,8 +35,11 @@ Usage:
 Default installation:
   $DEFAULT_TARGET
 
-After installation:
+After installation Aurora is registered for graphical-session autostart.
+Manual launch:
   qs -c Aurora
+
+Diagnostics:
   aurora-doctor
   aurora-theme list
 EOF
@@ -68,7 +73,7 @@ require_file() {
 }
 
 for file in \
-    VERSION shell.qml install.sh aurora-doctor aurora-theme \
+    VERSION shell.qml install.sh aurora-doctor aurora-theme aurora-autostart.desktop \
     Core/AuroraState.qml Core/AuroraConfig.qml Core/AuroraPluginRegistry.qml \
     Components/Layout/AuroraPlayer.qml \
     Providers/AuroraMprisController.qml Providers/AuroraPlayerProvider.qml; do
@@ -236,8 +241,7 @@ if ! mv -- "$STAGE_DIR" "$DEST_DIR"; then
     exit 1
 fi
 
-mkdir -p "${CONFIG_BASE%/}/aurora/plugins"
-mkdir -p "$BIN_DIR"
+mkdir -p "${CONFIG_BASE%/}/aurora/plugins" "$BIN_DIR" "$AUTOSTART_DIR"
 ln -sfn "$DEST_DIR/aurora-doctor" "$BIN_DIR/aurora-doctor"
 ln -sfn "$DEST_DIR/aurora-theme" "$BIN_DIR/aurora-theme"
 
@@ -248,6 +252,7 @@ else
     error "Fallo de validación después de la instalación."
     error "Aurora no quedó activado; ejecutando rollback..."
     rm -rf -- "$DEST_DIR"
+    rm -f -- "$AUTOSTART_FILE"
     if [[ -n "$BACKUP_DIR" && -d "$BACKUP_DIR" ]]; then
         mv -- "$BACKUP_DIR" "$DEST_DIR"
         success "Instalación anterior restaurada."
@@ -257,8 +262,13 @@ else
     exit 1
 fi
 
+# Register Aurora with the desktop session. This removes the need to keep a
+# terminal running and uses the same named Quickshell configuration as manual launch.
+cp -f -- "$DEST_DIR/aurora-autostart.desktop" "$AUTOSTART_FILE"
+
 success "Aurora $AURORA_VERSION instalado/actualizado correctamente."
-info "Ejecutar: qs -c Aurora"
+info "Autostart: $AUTOSTART_FILE"
+info "Lanzamiento manual: qs -c Aurora"
 info "Diagnóstico: aurora-doctor"
 info "Temas: aurora-theme list"
 
