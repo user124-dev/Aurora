@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Aurora
+Comment=Aurora standalone Quickshell media widget
+Exec=qs -c Aurora
+Terminal=false
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
