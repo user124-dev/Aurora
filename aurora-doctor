@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # Aurora Doctor — read-only diagnostics for source and installed trees.
 set -u
-ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+if [[ -L "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$(readlink -f -- "$SCRIPT_PATH")"
+fi
+ROOT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd -P)"
 STRICT=false
 INSTALLED=false
 ERRORS=0
