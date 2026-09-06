@@ -210,6 +210,7 @@ fi
 STAGE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/aurora-install.XXXXXX")"
 STAGE_DIR="$STAGE_ROOT/Aurora"
 BACKUP_DIR=""
+AUTOSTART_BACKUP=""
 cleanup() { rm -rf -- "$STAGE_ROOT"; }
 trap cleanup EXIT
 
@@ -245,14 +246,28 @@ mkdir -p "${CONFIG_BASE%/}/aurora/plugins" "$BIN_DIR" "$AUTOSTART_DIR"
 ln -sfn "$DEST_DIR/aurora-doctor" "$BIN_DIR/aurora-doctor"
 ln -sfn "$DEST_DIR/aurora-theme" "$BIN_DIR/aurora-theme"
 
+# Preserve an existing autostart entry so a failed installation can restore it.
+if [[ -f "$AUTOSTART_FILE" ]]; then
+    AUTOSTART_BACKUP="${AUTOSTART_FILE}.aurora-backup.$(date '+%Y%m%d-%H%M%S')"
+    cp -f -- "$AUTOSTART_FILE" "$AUTOSTART_BACKUP"
+fi
+
+# Register Aurora before installed-mode validation. The Doctor validates the
+# real installed state, so the autostart entry must already be present.
+cp -f -- "$DEST_DIR/aurora-autostart.desktop" "$AUTOSTART_FILE"
+
 info "Validando instalación..."
 if "$DEST_DIR/aurora-doctor" --installed; then
     success "Validación completada."
+    [[ -n "$AUTOSTART_BACKUP" ]] && rm -f -- "$AUTOSTART_BACKUP"
 else
     error "Fallo de validación después de la instalación."
     error "Aurora no quedó activado; ejecutando rollback..."
     rm -rf -- "$DEST_DIR"
     rm -f -- "$AUTOSTART_FILE"
+    if [[ -n "$AUTOSTART_BACKUP" && -f "$AUTOSTART_BACKUP" ]]; then
+        mv -- "$AUTOSTART_BACKUP" "$AUTOSTART_FILE"
+    fi
     if [[ -n "$BACKUP_DIR" && -d "$BACKUP_DIR" ]]; then
         mv -- "$BACKUP_DIR" "$DEST_DIR"
         success "Instalación anterior restaurada."
@@ -261,10 +276,6 @@ else
     fi
     exit 1
 fi
-
-# Register Aurora with the desktop session. This removes the need to keep a
-# terminal running and uses the same named Quickshell configuration as manual launch.
-cp -f -- "$DEST_DIR/aurora-autostart.desktop" "$AUTOSTART_FILE"
 
 success "Aurora $AURORA_VERSION instalado/actualizado correctamente."
 info "Autostart: $AUTOSTART_FILE"
