@@ -2,9 +2,12 @@
  * AuroraBackground.qml — visual surface behind the widget content.
  * Uses current MPRIS cover art when available and a deterministic theme
  * surface otherwise. No host-specific imports.
+ *
+ * The core path intentionally avoids QtQuick.Effects. Background art is
+ * therefore an optional rectangular visual layer rather than a rendering
+ * dependency for the rounded panel surface.
  */
 import QtQuick
-import QtQuick.Effects
 import "../../Core"
 
 Rectangle {
@@ -16,16 +19,6 @@ Rectangle {
     opacity: AuroraConfig.backgroundPanelOpacity
     z: 0
 
-    layer.enabled: true
-    layer.effect: MultiEffect {
-        maskEnabled: true
-        maskSource: Rectangle {
-            width: panel.width
-            height: panel.height
-            radius: panel.radius
-        }
-    }
-
     Image {
         id: backdrop
         anchors.fill: parent
@@ -36,12 +29,6 @@ Rectangle {
         cache: true
         opacity: AuroraConfig.backgroundArtOpacity
 
-        layer.enabled: true
-        layer.effect: MultiEffect {
-            blurEnabled: true
-            blur: AuroraConfig.backgroundBlurStrength
-            blurMax: AuroraConfig.backgroundBlurRadius
-        }
     }
 
     Rectangle {
