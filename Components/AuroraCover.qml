@@ -57,6 +57,7 @@ Item {
     Image {
         id: art
         anchors.fill: parent
+        anchors.margins: AuroraConfig.coverArtInset
         // Stays in the tree (rather than toggling visible on status)
         // so the opacity Behavior below has something to animate -
         // an item that's only ever added once already-opaque can't
