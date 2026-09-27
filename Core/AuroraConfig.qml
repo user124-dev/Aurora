@@ -31,6 +31,7 @@ QtObject {
     readonly property real widgetRadius: 18
     readonly property int expandedCoverSize: 120
     readonly property int coverBorderWidth: 1
+    readonly property int coverArtInset: 3
     readonly property real coverFallbackIconRatio: 0.4
 
     readonly property real backgroundArtOpacity: 0.35
