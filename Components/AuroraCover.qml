@@ -16,12 +16,11 @@
  * cover swap always reads as one continuous transition rather than
  * a flash of the placeholder. Depends only on AuroraState (data),
  * AuroraConfig (size/radius) and AuroraTheme (color) - no Providers,
- * no host imports. QtQuick.Effects is core Qt, not host-specific, so
- * the rounding stays even outside "ii".
+ * no host imports. The core rendering path intentionally avoids
+ * QtQuick.Effects so the cover remains reliable without shader support.
  */
 
 import QtQuick
-import QtQuick.Effects
 import "../Core"
 
 Item {
@@ -77,14 +76,7 @@ Item {
             }
         }
 
-        layer.enabled: true
-        layer.effect: MultiEffect {
-            maskEnabled: true
-            maskSource: Rectangle {
-                width: art.width
-                height: art.height
-                radius: AuroraConfig.coverRadius
-            }
-        }
+        // The image itself stays square in the fallback rendering path.
+        // The rounded fallback/frame remains visible underneath during loading.
     }
 }
