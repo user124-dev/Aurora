@@ -57,7 +57,21 @@ Singleton {
         themeDefinition.path = themeDirectory + "/" + provider.requestedTheme + ".json"
     }
 
+    // The palette (Themes/*.json) and the background source are two axes of
+    // the same selection file. An older theme.json without a "background"
+    // key keeps the adapter default, so existing installs are unaffected.
+    function applyStoredBackground() {
+        const modes = {
+            aurora: AuroraConfig.themeAurora,
+            system: AuroraConfig.themeSystem,
+            wallpaper: AuroraConfig.themeWallpaper
+        }
+        const mode = modes[String(themeAdapter.background || "aurora").trim().toLowerCase()]
+        AuroraConfig.themeMode = mode !== undefined ? mode : AuroraConfig.themeAurora
+    }
+
     function applyStoredTheme() {
+        provider.applyStoredBackground()
         provider.loadTheme(themeAdapter.name || "aurora")
     }
 
@@ -89,6 +103,7 @@ Singleton {
         JsonAdapter {
             id: themeAdapter
             property string name: "aurora"
+            property string background: "aurora"
         }
     }
 
@@ -115,7 +130,9 @@ Singleton {
 
     Connections {
         target: AuroraConfig
-        function onThemeModeChanged() { provider.applyStoredTheme() }
+        // Palette only: re-running applyStoredBackground() here would write
+        // themeMode again and fight whoever just changed it.
+        function onThemeModeChanged() { provider.loadTheme(themeAdapter.name || "aurora") }
     }
 
     Component.onCompleted: provider.initialize()

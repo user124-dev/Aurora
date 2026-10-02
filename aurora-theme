@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Aurora theme selector. Theme definitions live in the repository Themes/ tree;
-# the selected name is persisted outside the runtime tree.
+# the selection is persisted outside the runtime tree in one file with two
+# independent fields: "name" (the palette) and "background" (what is drawn
+# behind the widget: aurora, system or wallpaper).
 
 set -u
 
@@ -20,8 +22,14 @@ Usage:
   aurora-theme set <theme>
   aurora-theme use <theme>   (alias of 'set')
   aurora-theme reset
+  aurora-theme background list
+  aurora-theme background current
+  aurora-theme background set <aurora|system|wallpaper>
 
 Theme definitions are read from Aurora/Themes/*.json.
+'set' and 'reset' change the palette only; the background mode is kept.
+The wallpaper background needs one of: hyprpaper (hyprctl), swww, or GNOME
+(gsettings). Without one, Aurora falls back to its default background.
 EOF
 }
 
@@ -43,6 +51,33 @@ is_valid() {
     [[ -f "$THEMES_DIR/$1.json" ]]
 }
 
+BACKGROUND_MODES=(aurora system wallpaper)
+
+is_valid_background() {
+    local mode
+    for mode in "${BACKGROUND_MODES[@]}"; do
+        [[ "$mode" == "$1" ]] && return 0
+    done
+    return 1
+}
+
+# read_field <field> <default> - prints the string value of a top-level key
+# in theme.json, or the default when the file or the key is missing.
+read_field() {
+    local field="$1" default="$2" value=""
+    if [[ -f "$THEME_FILE" ]]; then
+        value="$(sed -n "s/.*\"$field\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$THEME_FILE" | head -n1)"
+    fi
+    printf '%s\n' "${value:-$default}"
+}
+
+# write_selection <name> <background> - always writes both fields, so
+# changing one axis can never drop the other.
+write_selection() {
+    mkdir -p "$THEME_DIR"
+    printf '{"name":"%s","background":"%s"}\n' "$1" "$2" > "$THEME_FILE"
+}
+
 case "${1:-}" in
     list)
         list_themes
@@ -61,14 +96,34 @@ case "${1:-}" in
             printf '\n' >&2
             exit 2
         fi
-        mkdir -p "$THEME_DIR"
-        printf '{"name":"%s"}\n' "$2" > "$THEME_FILE"
+        write_selection "$2" "$(read_field background aurora)"
         printf 'Aurora theme: %s\n' "$2"
         ;;
     reset)
-        mkdir -p "$THEME_DIR"
-        printf '{"name":"aurora"}\n' > "$THEME_FILE"
+        write_selection aurora "$(read_field background aurora)"
         printf 'Aurora theme: aurora\n'
+        ;;
+    background)
+        case "${2:-}" in
+            list)
+                printf '%s\n' "${BACKGROUND_MODES[@]}"
+                ;;
+            current)
+                read_field background aurora
+                ;;
+            set)
+                if [[ -z "${3:-}" ]] || ! is_valid_background "$3"; then
+                    printf 'Fondo inválido. Usa uno de: %s\n' "${BACKGROUND_MODES[*]}" >&2
+                    exit 2
+                fi
+                write_selection "$(read_field name aurora)" "$3"
+                printf 'Aurora background: %s\n' "$3"
+                ;;
+            *)
+                printf 'Uso: aurora-theme background <list|current|set <modo>>\n' >&2
+                exit 2
+                ;;
+        esac
         ;;
     -h|--help|"")
         usage
