@@ -10,8 +10,11 @@ QtObject {
     readonly property int hover: 1
     readonly property int expanded: 2
 
+    // Background source. Palette selection (Themes/*.json) is a separate
+    // axis: themeMode only decides what is drawn behind the widget.
     readonly property int themeAurora: 0
     readonly property int themeSystem: 1
+    readonly property int themeWallpaper: 2
     property int themeMode: themeAurora
 
     readonly property int compactWidth: 48
@@ -40,6 +43,18 @@ QtObject {
     readonly property real backgroundBlurStrength: 1.0
     readonly property real backgroundPanelOpacity: 0.98
     readonly property int backgroundBorderWidth: 1
+
+    // Wallpaper background (themeWallpaper). The image is attenuated twice -
+    // by its own opacity and by a theme-colored dim layer on top - so text
+    // and controls stay readable over any desktop wallpaper.
+    readonly property real wallpaperOpacity: 0.6
+    readonly property real wallpaperDimOpacity: 0.5
+    // Wallpapers can be 4K+; decoding at this width keeps memory bounded
+    // while still covering the largest widget size (expandedWidth).
+    readonly property int wallpaperDecodeWidth: 1280
+    // Wallpaper lookup shells out to external tools, so it only runs (and
+    // only polls) while themeWallpaper is the active mode.
+    readonly property int wallpaperRefreshInterval: 5000
 
     // Spectrum / Cava
     readonly property int bars: 48
@@ -135,6 +150,24 @@ QtObject {
     readonly property int slowAnimation: 450
     readonly property int hoverDelay: 150
     readonly property int hideDelay: 250
+
+    // Motion vocabulary for the UX-finishing pass. Easing curves live in
+    // AuroraAnimations; these are durations only.
+    // smoothAnimation: opacity/appearance fades.
+    // crossfadeAnimation: each half of a fade-out -> swap -> fade-in.
+    // layoutAnimation: Compact/Hover/Expanded size changes.
+    // lyricsAnimation: lyrics auto-scroll and active-line emphasis.
+    readonly property int smoothAnimation: 200
+    readonly property int crossfadeAnimation: 120
+    readonly property int layoutAnimation: 300
+    readonly property int lyricsAnimation: 350
+
+    // Free positioning of the standalone window (Compact and Hover modes).
+    // widgetDragEnabled is a safety valve: turn it off if a compositor
+    // handles layer-shell margin updates badly.
+    property bool widgetDragEnabled: true
+    readonly property int windowDefaultMarginTop: 24
+    readonly property int windowDefaultMarginRight: 24
 
     property bool developerMode: false
     readonly property int equalizerPresetScanDepth: 1

@@ -78,6 +78,13 @@ QtObject {
     property var lyricsLines: []
     property int lyricsCurrentLine: -1
 
+    // Desktop wallpaper (themeWallpaper background). Written only by
+    // AuroraWallpaperProvider; wallpaperBackend names whichever tool
+    // answered ("hyprpaper", "swww", "gsettings") for diagnostics.
+    property bool wallpaperAvailable: false
+    property url wallpaperSource: ""
+    property string wallpaperBackend: ""
+
     // Plugins
     property var plugins: ({})
 
@@ -97,4 +104,11 @@ QtObject {
     signal cycleRepeat()
     signal selectPlayer(string identity)
     signal setPreset(string name)
+
+    // Free window positioning. AuroraPlayer reports how far the pointer is
+    // from where it grabbed the widget; whoever owns the window (shell.qml
+    // in the standalone runtime) moves it by that amount. Components never
+    // touch a window directly, and nothing listens when Aurora is embedded.
+    signal widgetDragOffset(real dx, real dy)
+    signal widgetDragFinished()
 }
