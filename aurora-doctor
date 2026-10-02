@@ -47,7 +47,7 @@ if grep -q 'ShellRoot' "$ROOT_DIR/shell.qml" && grep -q 'PanelWindow' "$ROOT_DIR
 section 'Core structure'
 for f in \
   Core/AuroraState.qml Core/AuroraConfig.qml Core/AuroraTheme.qml Core/AuroraAnimations.qml Core/AuroraPluginRegistry.qml \
-  Providers/AuroraMprisController.qml Providers/AuroraPlayerProvider.qml Providers/AuroraAudioProvider.qml Providers/AuroraPipewireProvider.qml Providers/AuroraThemeProvider.qml Providers/AuroraEqualizerProvider.qml Providers/AuroraLyricsProvider.qml \
+  Providers/AuroraMprisController.qml Providers/AuroraPlayerProvider.qml Providers/AuroraAudioProvider.qml Providers/AuroraPipewireProvider.qml Providers/AuroraThemeProvider.qml Providers/AuroraEqualizerProvider.qml Providers/AuroraLyricsProvider.qml Providers/AuroraWallpaperProvider.qml \
   Components/Layout/AuroraPlayer.qml Components/Layout/AuroraBackground.qml Components/Layout/AuroraCompactView.qml Components/Layout/AuroraHoverView.qml Components/Layout/AuroraExpandedView.qml \
   Components/AuroraControls.qml Components/AuroraCover.qml Components/AuroraInfo.qml Components/AuroraSpectrum.qml Components/AuroraPlayerSwitcher.qml Components/AuroraEqualizerSwitcher.qml Components/AuroraLyricsPanel.qml Components/AuroraSessionPanel.qml Components/Media/AuroraBrowserBadge.qml \
   Session/AuroraSessionQueue.qml Assets/cava/raw_output_config.txt; do require_file "$f"; done
@@ -138,6 +138,29 @@ section 'Host isolation'
 if grep -q 'Quickshell.Services.Mpris' "$ROOT_DIR/Providers/AuroraMprisController.qml"; then ok "MPRIS uses Quickshell's official service API"; else fail 'AuroraMprisController is not using Quickshell.Services.Mpris'; fi
 if grep -q 'Quickshell.Services.Pipewire' "$ROOT_DIR/Providers/AuroraPipewireProvider.qml"; then ok "PipeWire uses Quickshell's official service API"; else fail 'AuroraPipewireProvider is not using Quickshell.Services.Pipewire'; fi
 
+section 'Rendering'
+# The runtime path must not need shaders: an earlier MultiEffect/OpacityMask
+# mask rendered the whole panel transparent. Only real code is matched
+# (import lines, layer.effect, effect elements), so comments that explain
+# the rule do not trip it.
+SHADER_HITS="$(grep -rEn '^[[:space:]]*(import[[:space:]]+(QtQuick\.Effects|Qt5Compat)|layer\.effect[[:space:]]*:|(MultiEffect|OpacityMask|GaussianBlur|FastBlur|DropShadow)[[:space:]]*\{)' \
+  "$ROOT_DIR/Core" "$ROOT_DIR/Components" "$ROOT_DIR/Providers" "$ROOT_DIR/Session" "$ROOT_DIR/shell.qml" 2>/dev/null || true)"
+if [[ -z "$SHADER_HITS" ]]; then
+  ok 'Runtime rendering path has no shader / QtQuick.Effects dependency'
+else
+  fail "Shader-dependent code in the runtime rendering path:"
+  printf '%s\n' "$SHADER_HITS"
+fi
+
+section 'Wallpaper background'
+if grep -q 'themeWallpaper' "$ROOT_DIR/Core/AuroraConfig.qml" \
+  && grep -q 'themeWallpaper' "$ROOT_DIR/Components/Layout/AuroraBackground.qml" \
+  && grep -q 'AuroraWallpaperProvider' "$ROOT_DIR/Components/Layout/AuroraPlayer.qml"; then
+  ok 'Wallpaper mode is wired (AuroraConfig, AuroraBackground, provider bootstrap)'
+else
+  fail 'Wallpaper mode is not fully wired (themeWallpaper / AuroraWallpaperProvider)'
+fi
+
 section 'Quickshell'
 if command -v qs >/dev/null 2>&1; then
   QS_VERSION="$(qs --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)"
@@ -152,6 +175,11 @@ if [[ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]]; then ok 'D-Bus session detected —
 if command -v pw-cli >/dev/null 2>&1 || command -v wpctl >/dev/null 2>&1 || command -v pipewire >/dev/null 2>&1; then ok 'PipeWire tooling detected'; else warn 'PipeWire CLI tooling not detected; Quickshell PipeWire API may still be available'; fi
 if command -v easyeffects >/dev/null 2>&1; then ok 'EasyEffects detected — effects integration available'; else warn 'EasyEffects not installed — equalizer/effects features remain optional'; fi
 if command -v curl >/dev/null 2>&1; then ok 'curl detected — remote covers/lyrics available'; else warn 'curl not installed — remote covers/lyrics are unavailable'; fi
+if command -v hyprctl >/dev/null 2>&1 || command -v swww >/dev/null 2>&1 || command -v gsettings >/dev/null 2>&1; then
+  ok 'Wallpaper source tool detected (hyprctl / swww / gsettings) — wallpaper background can resolve'
+else
+  warn 'No wallpaper source tool (hyprctl, swww, gsettings) — wallpaper background falls back to the default surface'
+fi
 
 section 'Environment'
 if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then ok 'Wayland session detected'; else warn 'Wayland session not detected'; fi
