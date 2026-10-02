@@ -12,6 +12,20 @@ Item {
     anchors.fill: parent
 
     property string panelMode: ""
+    // Which panel the container shows. Kept after panelMode goes back to ""
+    // so the panel stays intact while the container collapses around it.
+    property string shownPanel: "lyrics"
+
+    // shownPanel is set before panelMode so the Loader never builds the
+    // previously shown panel for a frame when switching.
+    function togglePanel(mode) {
+        if (root.panelMode === mode) {
+            root.panelMode = ""
+            return
+        }
+        root.shownPanel = mode
+        root.panelMode = mode
+    }
     readonly property bool interactiveHovered:
         switcher.hovered || controls.hovered || equalizerSwitcher.hovered ||
         panelLoader.item?.hovered || panelToolbarHover.hovered
@@ -46,14 +60,29 @@ Item {
         }
 
         Rectangle {
-            visible: AuroraState.effectsWarning
+            visible: opacity > 0
+            clip: true
             Layout.fillWidth: true
-            Layout.preferredHeight: visible ? AuroraConfig.effectsWarningHeight : 0
+            Layout.preferredHeight: AuroraState.effectsWarning ? AuroraConfig.effectsWarningHeight : 0
             radius: height / 2
             color: AuroraTheme.colorContainer
             border.width: AuroraConfig.effectsWarningBorderWidth
             border.color: AuroraTheme.colorPrimary
-            opacity: AuroraConfig.effectsWarningOpacity
+            opacity: AuroraState.effectsWarning ? AuroraConfig.effectsWarningOpacity : 0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: AuroraConfig.smoothAnimation
+                    easing.type: AuroraAnimations.standard
+                }
+            }
+
+            Behavior on Layout.preferredHeight {
+                NumberAnimation {
+                    duration: AuroraConfig.smoothAnimation
+                    easing.type: AuroraAnimations.standard
+                }
+            }
 
             Text {
                 anchors.fill: parent
@@ -90,7 +119,7 @@ Item {
                     font.family: AuroraTheme.fontFamily
                     color: root.panelMode === "queue" ? AuroraTheme.colorOnPrimary : AuroraTheme.colorOnBackground
                 }
-                TapHandler { onTapped: root.panelMode = root.panelMode === "queue" ? "" : "queue" }
+                TapHandler { onTapped: root.togglePanel("queue") }
             }
 
             Rectangle {
@@ -106,20 +135,49 @@ Item {
                     font.family: AuroraTheme.fontFamily
                     color: root.panelMode === "lyrics" ? AuroraTheme.colorOnPrimary : AuroraTheme.colorOnBackground
                 }
-                TapHandler { onTapped: root.panelMode = root.panelMode === "lyrics" ? "" : "lyrics" }
+                TapHandler { onTapped: root.togglePanel("lyrics") }
             }
 
             HoverHandler { id: panelToolbarHover }
         }
 
-        Loader {
-            id: panelLoader
+        // The panel keeps its full height inside a clipping container that
+        // grows and shrinks. Animating the Loader's own height instead would
+        // resize the panel every frame and squash its text. The Loader stays
+        // active until the container has fully collapsed, so closing reveals
+        // the panel going away rather than it vanishing first.
+        Item {
+            id: panelReveal
             Layout.fillWidth: true
-            Layout.preferredHeight: active ? AuroraConfig.featurePanelHeight : 0
-            visible: active
-            active: root.panelMode !== ""
-            asynchronous: false
-            sourceComponent: root.panelMode === "queue" ? queueComponent : lyricsComponent
+            Layout.preferredHeight: root.panelMode !== "" ? AuroraConfig.featurePanelHeight : 0
+            opacity: root.panelMode !== "" ? 1 : 0
+            visible: height > 0 || opacity > 0
+            clip: true
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: AuroraConfig.smoothAnimation
+                    easing.type: AuroraAnimations.standard
+                }
+            }
+
+            Behavior on Layout.preferredHeight {
+                NumberAnimation {
+                    duration: AuroraConfig.layoutAnimation
+                    easing.type: AuroraAnimations.standard
+                }
+            }
+
+            Loader {
+                id: panelLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: AuroraConfig.featurePanelHeight
+                active: root.panelMode !== "" || panelReveal.height > 0
+                asynchronous: false
+                sourceComponent: root.shownPanel === "queue" ? queueComponent : lyricsComponent
+            }
         }
 
         AuroraSpectrum {

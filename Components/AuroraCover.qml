@@ -72,7 +72,7 @@ Item {
         opacity: status === Image.Ready ? 1 : 0
         Behavior on opacity {
             NumberAnimation {
-                duration: AuroraConfig.normalAnimation
+                duration: AuroraConfig.smoothAnimation
                 easing.type: AuroraAnimations.standard
             }
         }

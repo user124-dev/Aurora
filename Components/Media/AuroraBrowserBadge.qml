@@ -40,11 +40,30 @@ Rectangle {
     readonly property var browserData: AuroraState.plugins.browserDetector
     readonly property bool active: root.browserData?.isBrowserPlaying ?? false
 
-    visible: root.active
+    // Appears by growing and fading rather than popping in and shoving the
+    // title sideways. `visible` follows opacity so a fully hidden badge
+    // still takes no layout space (and no spacing) in its row.
+    opacity: root.active ? 1 : 0
+    visible: opacity > 0
+    clip: true
     implicitWidth: root.active ? (label.implicitWidth + AuroraConfig.switcherChipPadding * 2) : 0
     implicitHeight: AuroraConfig.switcherChipHeight
     radius: height / 2
     color: AuroraTheme.colorContainer
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: AuroraConfig.smoothAnimation
+            easing.type: AuroraAnimations.standard
+        }
+    }
+
+    Behavior on implicitWidth {
+        NumberAnimation {
+            duration: AuroraConfig.smoothAnimation
+            easing.type: AuroraAnimations.standard
+        }
+    }
 
     Text {
         id: label

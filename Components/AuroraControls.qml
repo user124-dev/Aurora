@@ -17,6 +17,10 @@
  *
  * Icons are hand-drawn with QtQuick.Shapes and plain Text (core Qt)
  * instead of a host icon font, so this file has zero host imports.
+ *
+ * Glyphs that swap (play/pause, the repeat-one badge) cross-fade through
+ * opacity instead of toggling `visible`, which would cut instantly and
+ * leave nothing to animate.
  */
 
 import QtQuick
@@ -142,10 +146,18 @@ RowLayout {
             }
 
             Shape {
-                visible: AuroraState.playbackState !== "Playing"
+                opacity: AuroraState.playbackState !== "Playing" ? 1 : 0
                 anchors.centerIn: parent
                 width: AuroraConfig.playPauseGlyphWidth
                 height: AuroraConfig.playPauseGlyphHeight
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: AuroraConfig.fastAnimation
+                        easing.type: AuroraAnimations.standard
+                    }
+                }
+
                 ShapePath {
                     fillColor: AuroraTheme.colorOnPrimary
                     strokeColor: "transparent"
@@ -157,9 +169,17 @@ RowLayout {
             }
 
             Row {
-                visible: AuroraState.playbackState === "Playing"
+                opacity: AuroraState.playbackState === "Playing" ? 1 : 0
                 anchors.centerIn: parent
                 spacing: AuroraConfig.pauseGlyphBarSpacing
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: AuroraConfig.fastAnimation
+                        easing.type: AuroraAnimations.standard
+                    }
+                }
+
                 Rectangle { width: AuroraConfig.pauseBarWidth; height: AuroraConfig.playPauseGlyphHeight; color: AuroraTheme.colorOnPrimary }
                 Rectangle { width: AuroraConfig.pauseBarWidth; height: AuroraConfig.playPauseGlyphHeight; color: AuroraTheme.colorOnPrimary }
             }
@@ -241,7 +261,7 @@ RowLayout {
         }
 
         Text {
-            visible: AuroraState.repeatMode === "Track"
+            opacity: AuroraState.repeatMode === "Track" ? 1 : 0
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             anchors.rightMargin: AuroraConfig.repeatBadgeMargin
@@ -250,6 +270,13 @@ RowLayout {
             font.pixelSize: parent.width * AuroraConfig.repeatBadgeRatio
             font.bold: true
             color: AuroraTheme.colorPrimary
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: AuroraConfig.fastAnimation
+                    easing.type: AuroraAnimations.standard
+                }
+            }
         }
     }
 }

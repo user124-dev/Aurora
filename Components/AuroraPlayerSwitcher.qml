@@ -24,8 +24,27 @@ Item {
 
     property bool hovered: false
 
-    visible: AuroraState.players.length > 1
-    implicitHeight: visible ? AuroraConfig.switcherChipHeight : 0
+    // Opens and closes by growing/fading instead of snapping. `visible`
+    // follows opacity so a fully collapsed switcher adds no layout spacing.
+    readonly property bool shown: AuroraState.players.length > 1
+    opacity: root.shown ? 1 : 0
+    visible: opacity > 0
+    clip: true
+    implicitHeight: root.shown ? AuroraConfig.switcherChipHeight : 0
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: AuroraConfig.smoothAnimation
+            easing.type: AuroraAnimations.standard
+        }
+    }
+
+    Behavior on implicitHeight {
+        NumberAnimation {
+            duration: AuroraConfig.smoothAnimation
+            easing.type: AuroraAnimations.standard
+        }
+    }
 
     HoverHandler {
         id: switcherHover

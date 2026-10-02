@@ -58,6 +58,15 @@ Item {
             color: AuroraTheme.colorPrimary
             opacity: AuroraState.connected ? AuroraConfig.connectedOpacity : AuroraConfig.spectrumIdleOpacity
 
+            // Dimming when the source disconnects (and back) fades; the
+            // bar heights below stay linear because they follow audio.
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: AuroraConfig.smoothAnimation
+                    easing.type: AuroraAnimations.standard
+                }
+            }
+
             Behavior on height {
                 NumberAnimation {
                     duration: AuroraConfig.spectrumAnimation

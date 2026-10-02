@@ -9,8 +9,27 @@ Item {
     id: root
 
     property bool hovered: false
-    visible: AuroraState.equalizerAvailable
-    implicitHeight: visible ? AuroraConfig.switcherChipHeight : 0
+
+    // Same open/close treatment as AuroraPlayerSwitcher.
+    readonly property bool shown: AuroraState.equalizerAvailable
+    opacity: root.shown ? 1 : 0
+    visible: opacity > 0
+    clip: true
+    implicitHeight: root.shown ? AuroraConfig.switcherChipHeight : 0
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: AuroraConfig.smoothAnimation
+            easing.type: AuroraAnimations.standard
+        }
+    }
+
+    Behavior on implicitHeight {
+        NumberAnimation {
+            duration: AuroraConfig.smoothAnimation
+            easing.type: AuroraAnimations.standard
+        }
+    }
 
     HoverHandler {
         id: switcherHover
