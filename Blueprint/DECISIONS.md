@@ -430,6 +430,132 @@ cableado en `AuroraState`/`AuroraConfig`. El panel de Ecualizador dentro
 de `AuroraExpandedView` sigue siendo un renglón aparte en `ROADMAP.md` -
 no se tocó en esta ronda.
 
+## Fase 6: pulido final de UX (02/10/2026)
+
+Última ronda antes de considerar Aurora funcionalmente terminado. No agrega
+capas ni reorganiza nada: reutiliza `AuroraConfig`, `AuroraState`,
+`AuroraTheme` y el sistema de Providers existentes. Cuatro áreas.
+
+### Animaciones
+
+- **Vocabulario, no valores sueltos.** `AuroraConfig` gana `smoothAnimation`
+  (fundidos de aparición), `crossfadeAnimation` (cada mitad de un fade-out →
+  intercambio → fade-in), `layoutAnimation` (cambios de tamaño entre modos) y
+  `lyricsAnimation`. Las curvas siguen siendo las de `AuroraAnimations`:
+  `standard` en todo salvo el espectro (`linear`).
+- **Por qué no un `Behavior` sobre lo que cambia de golpe.** `Loader` cambia
+  su contenido en el mismo tick y `Text.text` no se puede interpolar: un
+  `Behavior` sobre su opacidad nunca llegaría a mostrar el estado intermedio.
+  El cambio de vista en `AuroraPlayer` y el de título/artista en `AuroraInfo`
+  se hacen con `SequentialAnimation` (fade-out → asignación → fade-in). El
+  script relee el valor deseado al intercambiar, así que cambios rápidos
+  siempre terminan en el último.
+- **Las propiedades mostradas se asignan, no se enlazan.** Un binding vivo
+  cambiaría el texto antes del fade-out; el primer cambio de canción se vería
+  instantáneo.
+- **Handlers durante la construcción.** `onXChanged` puede dispararse mientras
+  el componente aún se construye, antes de que existan los ids declarados más
+  abajo. Los que arrancan animaciones esperan a `Component.onCompleted`
+  (`ready` en `AuroraInfo`, `viewReady` en `AuroraPlayer`).
+- **`visible` no se anima.** Play/pause, el badge de repetir uno y los
+  elementos que aparecen y desaparecen usan `opacity` (y `visible: opacity > 0`
+  para no ocupar espacio ni spacing cuando están ocultos).
+- **Panel Queue/Lyrics.** Animar la altura del `Loader` redimensionaría el
+  panel en cada frame y aplastaría su texto. El panel conserva su altura en un
+  contenedor con `clip` que crece y se encoge, y el `Loader` sigue activo hasta
+  que el contenedor termina de colapsar (`shownPanel` recuerda cuál era).
+- **No se anima:** el reloj de tiempo (cambia cada segundo y parpadearía), las
+  barras del espectro (siguen audio; ya eran lineales) ni el arrastre (debe
+  seguir al puntero sin retraso).
+
+### Auto-scroll de letras
+
+`AuroraLyricsPanel` sigue `AuroraState.lyricsCurrentLine`. Reglas:
+
+- Reacciona solo cuando la línea activa **cambia**, no a la posición en bruto.
+  Así nada se mueve mientras se canta una línea, y no hay scroll continuo tipo
+  marquesina.
+- "Todavía visible" significa visible **con contexto**: la línea anterior y la
+  siguiente dentro del área. Si es así no se hace scroll; si no, la línea se
+  lleva al centro con animación. Si el área es tan pequeña que nunca cabe ese
+  contexto, se desplaza en cada cambio de línea, que es el comportamiento
+  correcto para ese caso.
+- Las letras **nuevas** (canción o fuente distinta, letra que llega a mitad de
+  canción, panel recién abierto) se colocan sin animar. Deslizarse por treinta
+  líneas para llegar a la correcta parecería un fallo, no suavidad.
+- Si el usuario toma el control con el ratón, el scroll automático suelta el
+  control (`onMovementStarted`).
+- El panel importaba `Providers/` sin usarlo, contra la regla de aislamiento;
+  se quitó al reescribir el archivo.
+
+**Límites conocidos, no resueltos aquí:** la letra plana no tiene línea activa,
+así que no se desplaza sola; y `AuroraLyricsProvider` solo recalcula la línea
+activa mientras se reproduce, de modo que un salto de posición estando en pausa
+no la actualiza hasta reanudar (es un comportamiento previo del Provider).
+
+### Modo de fondo Wallpaper
+
+- **Es un eje del tema, no un tema paralelo.** `AuroraConfig.themeMode` gana
+  `themeWallpaper` y decide qué se dibuja *detrás* del widget; la paleta
+  (`AuroraTheme`) no cambia. El modo se persiste en el mismo `theme.json`
+  (campo `background`, junto a `name`) y se administra con el mismo
+  `aurora-theme`. Un `theme.json` antiguo sin el campo sigue siendo válido.
+- **Quickshell no documenta una API para conocer el wallpaper**, y Wayland
+  tampoco define un protocolo: solo la herramienta que lo dibuja lo sabe.
+  Aurora no va a gestionar el wallpaper por su cuenta (no es un gestor de
+  fondos), así que `AuroraWallpaperProvider` lee la herramienta que lo dibuja,
+  con tres estrategias en orden: `hyprctl hyprpaper listactive`, `swww query`
+  y `gsettings`. Es best-effort y está documentado como tal; no hay ruta de
+  usuario escrita en el código.
+- **Nunca deja el widget sin fondo.** El wallpaper solo sustituye a la portada
+  cuando fue encontrado *y* decodificado; si no, la portada (o la superficie
+  del tema) se queda. Aplica también a rutas que no son imagen (un slideshow
+  XML de GNOME).
+- **Costo acotado.** La consulta solo se ejecuta y repite mientras el modo
+  wallpaper está activo, prueba primero la estrategia que funcionó la última
+  vez, y no lanza procesos para herramientas que no existen. La imagen se
+  decodifica a `wallpaperDecodeWidth` como máximo y no se enlaza fuera del modo.
+- **Sin shaders.** Imagen + capa de atenuación del color del tema
+  (`wallpaperOpacity`, `wallpaperDimOpacity`). El widget muestra la imagen
+  recortada a su tamaño, no la porción del escritorio que hay detrás.
+- **Se mantiene un límite visual previo:** sin `QtQuick.Effects` no hay recorte
+  redondeado de imágenes, así que las esquinas de la imagen pueden asomar
+  unos píxeles fuera del panel redondeado (ya pasaba con la portada). La
+  capa de atenuación sí se redondeó para coincidir con el panel.
+
+### Posición libre de la ventana
+
+- **Quickshell no documenta una operación nativa de "mover" para
+  `PanelWindow`** (una ventana layer-shell se posiciona por anclas y
+  márgenes). Se mantienen
+  las anclas `top`+`right` originales y se cambian los márgenes; con dos
+  anclas adyacentes el tamaño no queda forzado a pantalla completa y los
+  márgenes pueden llegar a cualquier punto de la pantalla.
+- **Quién sabe qué.** `AuroraPlayer` solo informa (`widgetDragOffset`,
+  `widgetDragFinished` en `AuroraState`); `shell.qml`, que posee la ventana,
+  aplica los márgenes, limita a la pantalla y persiste. Ningún componente
+  conoce la ventana, y embebido en un host nadie escucha.
+- **El desplazamiento se aplica como corrección, no se acumula.** Al mover la
+  ventana, el puntero queda de nuevo en el punto de agarre y el desplazamiento
+  vuelve a cero; acumularlo produciría oscilación. `desiredTop/Right` se
+  guarda aparte de los márgenes reales, que se recalculan (y limitan) cuando
+  cambia el tamaño: un Expanded junto a un borde se empuja dentro de la
+  pantalla y vuelve a su sitio al encogerse.
+- **Compact y Hover, no solo Compact.** Apuntar a Compact abre Hover tras
+  `hoverDelay` (150 ms); un arrastre solo en Compact sería casi imposible de
+  iniciar. Expanded permanece fijo. Durante el arrastre se detienen los
+  temporizadores de cambio de modo.
+- **No roba el seek ni dispara botones.** `grabPermissions` se restringe para
+  que un arrastre sobre la barra de progreso siga siendo un seek; un arrastre
+  que supera el umbral cancela el toque de un botón.
+- **Persistencia** con el mismo `FileView` + `JsonAdapter` +
+  `Quickshell.statePath()` que `aurora-last-source.json`, una vez por
+  arrastre. Sin base de datos ni sistema nuevo.
+- **Sin validar en un compositor real.** El seguimiento depende de que el
+  compositor reenvíe la posición del puntero al mover una superficie
+  layer-shell; `AuroraConfig.widgetDragEnabled` permite desactivarlo si un
+  compositor lo maneja mal. No hay arrastre entre monitores.
+
 ## Abierto / Pendiente
 
 - **`themeSystem` aún no tiene adapter de host real.** En el runtime standalone,

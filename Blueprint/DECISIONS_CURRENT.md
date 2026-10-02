@@ -32,7 +32,9 @@ Cava es la fuente actual del espectro y sus muestras terminan en `AuroraState.sp
 
 ## 7. Tema
 
-`AuroraThemeProvider` usa `Themes/Default/Theme.qml` en standalone. No se declara soporte de adapters de compositor hasta contar con implementación y prueba verificable.
+`AuroraThemeProvider` carga la paleta seleccionada desde `Themes/*.json` en standalone. No se declara soporte de adapters de compositor hasta contar con implementación y prueba verificable.
+
+La selección persistente (`~/.config/aurora/theme.json`) tiene dos ejes independientes: la paleta (`name`) y el modo de fondo (`background`, que se traduce a `AuroraConfig.themeMode`). Ver decisión 15.
 
 ## 8. Plugins
 
@@ -73,3 +75,27 @@ La persistencia de la sesión es futura y no forma parte del contrato actual.
 El Provider puede exponer letra plana y sincronizada. Las líneas sincronizadas se convierten a timestamps internos y `AuroraState.lyricsCurrentLine` sigue la posición de reproducción.
 
 La UI nunca debe depender directamente del backend de letras. El backend puede cambiar o desaparecer sin romper reproducción, MPRIS, PipeWire o Cava.
+
+## 15. Modo de fondo Wallpaper
+
+`AuroraConfig.themeMode` decide qué se dibuja detrás del widget (`themeAurora`, `themeSystem`, `themeWallpaper`); no reemplaza la paleta de `AuroraTheme`. No existe un sistema de temas paralelo: el modo se persiste en el mismo `theme.json` y se administra con el mismo `aurora-theme`.
+
+El wallpaper lo resuelve `Providers/AuroraWallpaperProvider.qml` con una cadena best-effort (hyprpaper, swww, gsettings) porque Quickshell no documenta una API para ello. Es un adapter opcional: si ninguna herramienta responde, `AuroraBackground` usa su superficie por defecto. El camino de render sigue libre de `QtQuick.Effects` y shaders; `aurora-doctor` lo comprueba.
+
+## 16. Posición libre de la ventana
+
+En el runtime standalone el widget se puede arrastrar en Compact y Hover. Se incluye Hover porque apuntar a Compact abre Hover tras `hoverDelay`, de modo que un arrastre solo-Compact sería prácticamente imposible de iniciar. Expanded permanece fijo.
+
+`AuroraPlayer` solo informa, mediante las señales `widgetDragOffset` y `widgetDragFinished` de `AuroraState`, cuánto se ha desplazado el puntero desde el punto de agarre. Quien posee la ventana (`shell.qml`) las convierte en márgenes del `PanelWindow`, los limita a la pantalla y guarda la posición al soltar en `Quickshell.statePath("aurora-window-position.json")`. Ningún componente conoce la ventana; embebido en un host, nadie escucha esas señales.
+
+Limitaciones deliberadas: solo se mueve dentro de la pantalla de la ventana (una superficie layer-shell pertenece a una salida), y `AuroraConfig.widgetDragEnabled` permite desactivarlo.
+
+## 17. Vocabulario de movimiento
+
+Las duraciones viven en `AuroraConfig` (`fastAnimation`, `smoothAnimation`, `crossfadeAnimation`, `normalAnimation`, `layoutAnimation`, `lyricsAnimation`, `slowAnimation`) y las curvas en `AuroraAnimations`. Se usa `AuroraAnimations.standard` para tamaño, posición y opacidad, y `linear` solo para lo que sigue un reloj externo (barras del espectro).
+
+Los cambios de vista y de texto se hacen con fade-out, intercambio y fade-in, porque un `Loader` o un `Text` cambian instantáneamente y un `Behavior` sobre su opacidad nunca llegaría a mostrarse.
+
+## 18. Auto-scroll de letras
+
+`AuroraLyricsPanel` sigue `AuroraState.lyricsCurrentLine`. Solo reacciona cuando la línea activa **cambia**, nunca a la posición de reproducción en bruto, y no se desplaza si la línea sigue visible con la línea anterior y la siguiente. Las letras nuevas (canción o fuente distinta, llegada tardía, panel recién abierto) se colocan sin animación. La letra plana, al no tener línea activa, no se desplaza automáticamente.

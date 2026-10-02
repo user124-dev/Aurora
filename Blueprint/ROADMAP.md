@@ -59,6 +59,17 @@ Estado y dirección técnica del proyecto. Para decisiones vigentes, ver [`DECIS
 - [ ] Ajustes reorganizados como panel/overlay
 - [ ] Nivel B del EQ: control en vivo banda por banda vía una API estable
 
+## v0.6 — Pulido final de experiencia
+
+- [x] Animaciones unificadas entre modos, portada, información, controles, espectro, letras y elementos dinámicos
+- [x] Auto-scroll contextual de letras
+- [x] Fondo `wallpaper` como modo de `themeMode`, con fallback
+- [x] Widget movible en Compact y Hover con posición persistente
+- [x] Aurora Doctor: wallpaper y camino de render libre de shaders
+- [ ] Validar en un Quickshell real: arrastre, resolución del wallpaper y fluidez de las transiciones
+- [ ] Arrastre entre monitores (hoy limitado a la pantalla de la ventana)
+- [ ] Fondo wallpaper recortado con esquinas redondeadas sin shaders
+
 ## Exploratorio / sin fecha
 
 - Modo terminal

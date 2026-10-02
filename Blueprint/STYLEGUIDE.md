@@ -32,7 +32,10 @@ Convenciones de código QML usadas en el proyecto. El objetivo es que cualquier 
 
 ## Animaciones
 
-- Duraciones siempre desde `AuroraConfig` (`fastAnimation`, `normalAnimation`, `slowAnimation`), nunca valores sueltos.
+- Duraciones siempre desde `AuroraConfig`, nunca valores sueltos: `fastAnimation` (hover, iconos), `smoothAnimation` (fundidos de aparición), `crossfadeAnimation` (cada mitad de un fade-out → intercambio → fade-in), `normalAnimation`, `layoutAnimation` (cambios de tamaño entre modos), `lyricsAnimation` (scroll y énfasis de letras) y `slowAnimation`.
+- Una sola filosofía de easing, desde `AuroraAnimations`: `standard` para tamaño, posición y opacidad; `linear` solo para lo que sigue un reloj externo (barras del espectro); `emphasized` queda reservado para gestos deliberados.
+- Lo que cambia de golpe (`Loader.sourceComponent`, `Text.text`, `visible`) no se anima con un `Behavior`. Se anima la opacidad y el cambio se hace con el elemento invisible; los elementos que aparecen y desaparecen usan `opacity` y dejan `visible: opacity > 0`.
+- Los handlers `onXChanged` pueden dispararse mientras el componente aún se construye; los que arrancan animaciones esperan a `Component.onCompleted`.
 
 ## QML y aislamiento del host
 

@@ -15,6 +15,7 @@ Fuente única del estado de runtime:
 - estado de EasyEffects
 - estado de sesión: `sessionQueue`, `sessionHistory`, `sessionSource`, `sessionPlaybackStatus`
 - estado de letras: `lyricsAvailable`, `lyricsLoading`, `lyricsStatus`, `lyricsPlain`, `lyricsLines`, `lyricsCurrentLine`
+- estado del wallpaper: `wallpaperAvailable`, `wallpaperSource`, `wallpaperBackend`
 - `widgetMode`, `plugins`
 
 `duration` y `position` son valores reales para conservar precisión temporal. `progress` es de solo lectura y queda limitado al rango `0..1`.
@@ -33,6 +34,15 @@ AuroraState.setPreset(name)
 ```
 
 Los componentes llaman estas acciones. `AuroraPlayerProvider` las escucha mediante `Connections`.
+
+Además existen dos señales de posicionamiento de ventana, que no pertenecen a ningún Provider:
+
+```qml
+AuroraState.widgetDragOffset(dx, dy)   // desplazamiento del puntero respecto al punto de agarre
+AuroraState.widgetDragFinished()
+```
+
+`AuroraPlayer` las emite; `shell.qml` las escucha y mueve el `PanelWindow`. Se aplican como corrección y no se acumulan: al seguir la ventana al puntero, el desplazamiento vuelve a cero.
 
 ## `Core/AuroraConfig.qml`
 
@@ -113,6 +123,10 @@ PipeWire sigue siendo la integración principal para estado de audio del sistema
 ## `Providers/AuroraPipewireProvider.qml`
 
 Usa `Quickshell.Services.Pipewire` para observar salida predeterminada, mute, volumen y streams. No modifica todavía el grafo de PipeWire.
+
+## `Providers/AuroraWallpaperProvider.qml`
+
+Escribe `AuroraState.wallpaperAvailable`, `wallpaperSource` (URL) y `wallpaperBackend` (`hyprpaper`, `swww` o `gsettings`) solo mientras `AuroraConfig.themeMode` es `themeWallpaper`. Las tres herramientas son opcionales y no se expone ningún objeto externo a los componentes. Ver `PROVIDERS.md`.
 
 ## `Providers/AuroraEqualizerProvider.qml`
 

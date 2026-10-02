@@ -21,6 +21,9 @@ El contexto conceptual del proyecto — identidad, filosofía e ideas — está 
 - Letras planas y sincronizadas mediante un Provider desacoplado.
 - Sistema de plugins externo.
 - Temas runtime seleccionables desde terminal, persistidos fuera del código de Aurora.
+- Fondo `wallpaper` opcional: el fondo de pantalla del escritorio en lugar de la portada.
+- Widget movible en Compact y Hover: se arrastra y recuerda su posición.
+- Letras con desplazamiento automático a la línea actual.
 
 La cola de Aurora no depende de `org.mpris.MediaPlayer2.Playlists`: una fuente puede no exponer una playlist seleccionable. Aurora conserva su propio historial/cola y solo solicita acciones que la fuente realmente soporte.
 
@@ -55,6 +58,16 @@ Aurora incluye cuatro paletas base:
 
 El cambio se puede hacer en caliente con `aurora-theme set <tema>`. La preferencia se guarda en `~/.config/aurora/theme.json`, separada del runtime técnico.
 
+Aparte de la paleta, el fondo del widget tiene tres modos: `aurora` (portada del álbum, por defecto), `system` (reservado) y `wallpaper` (el fondo de pantalla del escritorio, atenuado):
+
+```bash
+aurora-theme background list
+aurora-theme background set wallpaper
+aurora-theme background set aurora
+```
+
+El modo `wallpaper` necesita una de estas herramientas para localizar el fondo: hyprpaper (`hyprctl`), swww o GNOME (`gsettings`). Sin ninguna, Aurora usa el fondo por defecto.
+
 ## Dependencias
 
 ### Clave
@@ -66,6 +79,7 @@ El cambio se puede hacer en caliente con `aurora-theme set <tema>`. La preferenc
 - **Cava** — espectro de audio.
 - **EasyEffects** — presets de efectos/ecualización.
 - **curl** — backend inicial de letras y cache de carátulas remotas.
+- **hyprpaper**, **swww** o **GNOME** — solo para el fondo `wallpaper`.
 
 Si una dependencia opcional no está disponible, Aurora conserva las demás funciones y degrada únicamente la capacidad correspondiente.
 
@@ -92,6 +106,7 @@ Aurora
 │   ├── AuroraAudioProvider.qml
 │   ├── AuroraPipewireProvider.qml
 │   ├── AuroraLyricsProvider.qml
+│   ├── AuroraWallpaperProvider.qml
 │   └── AuroraEqualizerProvider.qml
 ├── Session/
 │   └── AuroraSessionQueue.qml

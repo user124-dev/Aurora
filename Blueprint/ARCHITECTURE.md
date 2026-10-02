@@ -6,7 +6,7 @@ Aurora es un widget multimedia para Quickshell con tres modos de UI: Compact, Ho
 
 ```text
 Aurora/
-├── shell.qml                 # Entry point standalone
+├── shell.qml                 # Entry point standalone (ventana y su posición)
 ├── Assets/                   # Recursos estáticos
 ├── Blueprint/                # Especificación y decisiones técnicas
 ├── Project/                  # Contexto no técnico: identidad, filosofía e ideas
@@ -14,7 +14,7 @@ Aurora/
 │   ├── Layout/               # Root + Compact / Hover / Expanded
 │   └── Media/                # UI especializada
 ├── Core/                     # Estado, configuración, tema y plugins
-├── Providers/                # MPRIS, PipeWire, Cava, EasyEffects, letras
+├── Providers/                # MPRIS, PipeWire, Cava, EasyEffects, letras, wallpaper
 ├── Session/                  # Cola e historial propios de Aurora
 ├── Research/                 # Material de estudio; no es runtime
 ├── Examples/                 # Ejemplos; no se cargan automáticamente
@@ -35,7 +35,7 @@ shell.qml → PanelWindow → AuroraPlayer
              Compact      Hover      Expanded
 ```
 
-El entrypoint solo crea la ventana y carga el widget. No contiene lógica multimedia.
+El entrypoint crea la ventana, carga el widget y es el único que sabe mover la ventana: convierte las señales de arrastre de `AuroraState` en márgenes del `PanelWindow` y guarda la posición. No contiene lógica multimedia.
 
 ## Dirección de dependencias
 
@@ -68,6 +68,7 @@ El entrypoint solo crea la ventana y carga el widget. No contiene lógica multim
 Cava ──► AuroraAudioProvider ──► AuroraState.spectrumLevels
 EasyEffects ──► AuroraEqualizerProvider ──► AuroraState effects state
 Lyrics backend ──► AuroraLyricsProvider ──► AuroraState lyrics state
+hyprpaper / swww / gsettings ──► AuroraWallpaperProvider ──► AuroraState.wallpaperSource
 ```
 
 Los componentes visuales no importan servicios del host. `AuroraPlayer.qml` es el bootstrap controlado que inicializa los servicios globales.
@@ -119,7 +120,11 @@ Ejecuta Cava cuando está disponible y transforma sus muestras en `AuroraState.s
 
 ### `AuroraThemeProvider`
 
-En standalone usa `Themes/Default/Theme.qml`.
+En standalone carga la paleta seleccionada desde `Themes/*.json` y lee de `theme.json` el modo de fondo (`background`), que traduce a `AuroraConfig.themeMode`.
+
+### `AuroraWallpaperProvider`
+
+Adapter opcional que obtiene el fondo de pantalla para el modo `themeWallpaper`. Quickshell no documenta una API para ello, así que prueba en orden hyprpaper, swww y gsettings, y solo se ejecuta mientras ese modo está activo. Si nada responde, el fondo usa su superficie por defecto.
 
 ### `AuroraEqualizerProvider`
 
@@ -177,4 +182,6 @@ Spotify, MPV, VLC y navegadores son fuentes MPRIS de primera clase mientras publ
 
 ## Herramientas
 
-`aurora-doctor` es read-only y comprueba instalación, Quickshell, MPRIS, PipeWire, Cava, EasyEffects, entorno gráfico, aislamiento del host y documentación.
+`aurora-doctor` es read-only y comprueba instalación, Quickshell, MPRIS, PipeWire, Cava, EasyEffects, herramientas de wallpaper, entorno gráfico, aislamiento del host, camino de render libre de shaders y documentación.
+
+`aurora-theme` administra la paleta y el modo de fondo (`theme.json`).

@@ -25,6 +25,7 @@ Si falta, `install.sh` pregunta antes de instalarlo. Si el usuario rechaza la de
 - **Cava** — espectro de audio.
 - **EasyEffects** — presets de efectos/ecualización.
 - **curl** — cache de carátulas remotas y backend inicial de letras.
+- **hyprpaper** (`hyprctl`), **swww** o **GNOME** (`gsettings`) — solo para el fondo `wallpaper`. Basta con una; sin ninguna, ese modo usa el fondo por defecto.
 
 Las funciones opcionales degradan de forma independiente. La ausencia de Cava no desactiva MPRIS; la ausencia de EasyEffects no desactiva el reproductor; la ausencia de curl no desactiva reproducción ni el resto de Aurora.
 
@@ -52,7 +53,7 @@ El entrypoint `shell.qml` crea una `PanelWindow` standalone y carga `Components/
 ./aurora-doctor
 ```
 
-Doctor comprueba runtime, estructura, aislamiento del host, versión de Quickshell, MPRIS, PipeWire, Cava, sesión gráfica, compositor, instalador y coherencia del Blueprint.
+Doctor comprueba runtime, estructura, aislamiento del host, camino de render libre de shaders, versión de Quickshell, MPRIS, PipeWire, Cava, herramientas de wallpaper, sesión gráfica, compositor, instalador y coherencia del Blueprint.
 
 ## Plugins
 

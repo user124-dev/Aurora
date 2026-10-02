@@ -57,6 +57,17 @@ La dependencia es blanda: un fallo del backend nunca debe impedir la reproducci�
 
 El backend permanece aislado para permitir futuras fuentes de letras sin modificar Components.
 
+## AuroraWallpaperProvider
+
+Adaptador opcional que publica el fondo de pantalla actual en `AuroraState.wallpaperSource` para el modo `themeWallpaper`.
+
+- Quickshell no documenta una API de wallpaper y Wayland no define un protocolo para consultarlo; solo la herramienta que lo dibuja lo sabe.
+- Prueba en orden `hyprctl hyprpaper listactive`, `swww query` y `gsettings` (`org.gnome.desktop.background`). La primera respuesta válida gana y pasa a ser la preferida en las siguientes consultas.
+- Detecta primero qué herramientas existen y no lanza procesos para las que faltan.
+- Los argumentos son siempre elementos separados de `command`; nunca una cadena de shell construida con datos.
+- Solo consulta (y repite cada `AuroraConfig.wallpaperRefreshInterval`) mientras `themeWallpaper` está activo.
+- Si ninguna herramienta responde, `wallpaperAvailable` queda en `false` y `AuroraBackground` usa su superficie por defecto.
+
 ## Session/AuroraSessionQueue
 
 No es un Provider externo: es una capa propia de sesión de Aurora.
