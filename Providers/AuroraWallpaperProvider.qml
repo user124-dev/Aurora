@@ -61,6 +61,15 @@ Singleton {
     // steady-state poll costs one process instead of up to three.
     property string lastBackend: ""
     property bool unavailableLogged: false
+    property bool converting: false
+    property string conversionSource: ""
+    property string conversionBackend: ""
+    property int conversionSerial: 0
+    property string convertedSource: ""
+    property string convertedUrl: ""
+
+    readonly property string cacheRoot:
+        (Quickshell.env("XDG_CACHE_HOME") || ((Quickshell.env("HOME") || ".") + "/.cache")) + "/aurora"
 
     function initialize() {
         if (provider.initialized)
@@ -87,6 +96,19 @@ Singleton {
         if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value))
             return value
         return "file://" + encodeURI(value).replace(/#/g, "%23").replace(/\?/g, "%3F")
+    }
+
+    function localPath(value) {
+        if (!value)
+            return ""
+        if (value.startsWith("file://"))
+            return decodeURIComponent(value.slice(7))
+        return value
+    }
+
+    function needsConversion(value) {
+        const path = provider.localPath(value).toLowerCase()
+        return /\.(jxl|avif|heic|heif|jp2|j2k)$/.test(path)
     }
 
     function parseHyprpaper(text) {
@@ -174,11 +196,31 @@ Singleton {
         const value = provider.parse(provider.current, text)
         if (value) {
             provider.lastBackend = provider.current
-            provider.publish(provider.toUrl(value), provider.current)
+            provider.publishSource(value, provider.current)
             provider.probing = false
             return
         }
         provider.tryNext()
+    }
+
+    function publishSource(path, backend) {
+        const local = provider.localPath(path)
+        if (!provider.needsConversion(path) ||
+            (!provider.tools.ffmpeg && !provider.tools.magick)) {
+            provider.publish(provider.toUrl(path), backend)
+            return
+        }
+
+        if (provider.convertedSource === local && provider.convertedUrl !== "") {
+            provider.publish(provider.convertedUrl, backend)
+            return
+        }
+
+        provider.conversionSerial += 1
+        provider.conversionSource = provider.localPath(path)
+        provider.conversionBackend = backend
+        provider.converting = true
+        wallpaperCacheDir.running = true
     }
 
     // Assigning an unchanged value emits no change signal in QML, so a steady
@@ -203,7 +245,7 @@ Singleton {
     // process that can only fail.
     Process {
         id: toolDetection
-        command: ["sh", "-c", "for c in hyprctl swww gsettings; do command -v \"$c\" >/dev/null 2>&1 && echo \"$c\"; done"]
+        command: ["sh", "-c", "for c in hyprctl swww gsettings ffmpeg magick; do command -v \"$c\" >/dev/null 2>&1 && echo \"$c\"; done"]
 
         stdout: SplitParser {
             splitMarker: "\n"
@@ -219,6 +261,53 @@ Singleton {
             provider.tools = found
             provider.toolsKnown = true
             provider.startCycle()
+        }
+    }
+
+    Process {
+        id: wallpaperCacheDir
+        command: ["mkdir", "-p", provider.cacheRoot]
+
+        onExited: (exitCode, exitStatus) => {
+            if (Number(exitCode) !== 0 || !provider.converting) {
+                provider.converting = false
+                provider.publish(provider.toUrl(provider.conversionSource), provider.conversionBackend)
+                return
+            }
+
+            const target = provider.cacheRoot + "/wallpaper-" + provider.conversionSerial + ".png"
+            if (provider.tools.magick) {
+                wallpaperConverter.command = ["magick", provider.conversionSource, "-resize", "1280x1280>", target]
+            } else {
+                wallpaperConverter.command = ["ffmpeg", "-y", "-i", provider.conversionSource, "-frames:v", "1", "-vf", "scale=1280:-2:force_original_aspect_ratio=decrease", target]
+            }
+            wallpaperConverter.running = true
+        }
+    }
+
+    Process {
+        id: wallpaperConverter
+        command: []
+
+        stdout: SplitParser {
+            onRead: data => {}
+        }
+        stderr: SplitParser {
+            onRead: data => {}
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            const target = provider.cacheRoot + "/wallpaper-" + provider.conversionSerial + ".png"
+            provider.converting = false
+            if (Number(exitCode) === 0) {
+                provider.convertedSource = provider.conversionSource
+                provider.convertedUrl = provider.toUrl(target) + "?v=" + provider.conversionSerial
+                provider.publish(provider.convertedUrl, provider.conversionBackend)
+            } else {
+                // Keep the original path as a final fallback: some Qt builds
+                // can decode formats that are not universally available.
+                provider.publish(provider.toUrl(provider.conversionSource), provider.conversionBackend)
+            }
         }
     }
 

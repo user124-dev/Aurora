@@ -87,32 +87,20 @@ Item {
         z: 0
     }
 
-    HoverHandler {
-        id: hoverHandler
-        onHoveredChanged: {
-            // A drag keeps the pointer on the widget by construction, and
-            // the timers are stopped for its duration - see dragHandler.
-            if (root.dragging)
-                return
-
-            if (hoverHandler.hovered) {
-                hideTimer.stop()
-                showTimer.restart()
-                return
-            }
-            showTimer.stop()
-            hideTimer.restart()
-        }
-    }
-
+    // Mode changes are explicit clicks, not hover state:
+    // Compact -> Hover -> Expanded -> Compact. Interactive controls keep
+    // their own clicks; the root handler is disabled while a transport/seek
+    // region owns the pointer.
     TapHandler {
         acceptedButtons: Qt.LeftButton
         enabled: !root.hostSized && !root.interactiveHovered
         onTapped: {
-            if (AuroraState.widgetMode === AuroraConfig.hover)
-                AuroraState.widgetMode = AuroraConfig.expanded
-            else if (AuroraState.widgetMode === AuroraConfig.expanded)
+            if (AuroraState.widgetMode === AuroraConfig.compact)
                 AuroraState.widgetMode = AuroraConfig.hover
+            else if (AuroraState.widgetMode === AuroraConfig.hover)
+                AuroraState.widgetMode = AuroraConfig.expanded
+            else
+                AuroraState.widgetMode = AuroraConfig.compact
         }
     }
 
@@ -138,41 +126,39 @@ Item {
         grabPermissions: PointerHandler.ApprovesTakeOverByAnything
         enabled: AuroraConfig.widgetDragEnabled && !root.hostSized && root.mode !== AuroraConfig.expanded
 
+        property real lastDragX: 0
+        property real lastDragY: 0
+
         onTranslationChanged: {
-            if (dragHandler.active)
-                AuroraState.widgetDragOffset(dragHandler.translation.x, dragHandler.translation.y)
+            if (!dragHandler.active)
+                return
+
+            // DragHandler.translation is cumulative for the current grab.
+            // AuroraState expects a delta, so only emit the movement since
+            // the previous signal; otherwise the same pixels are applied
+            // repeatedly and the window accelerates away from the pointer.
+            const dx = dragHandler.translation.x - dragHandler.lastDragX
+            const dy = dragHandler.translation.y - dragHandler.lastDragY
+            dragHandler.lastDragX = dragHandler.translation.x
+            dragHandler.lastDragY = dragHandler.translation.y
+
+            if (dx !== 0 || dy !== 0)
+                AuroraState.widgetDragOffset(dx, dy)
         }
 
         onActiveChanged: {
             if (dragHandler.active) {
                 // No mode change mid-drag: a size change would move the
-                // point the user is holding.
-                showTimer.stop()
-                hideTimer.stop()
+                // point the user is holding. Start delta tracking from the
+                // current cumulative translation.
+                dragHandler.lastDragX = dragHandler.translation.x
+                dragHandler.lastDragY = dragHandler.translation.y
                 return
             }
 
+            dragHandler.lastDragX = 0
+            dragHandler.lastDragY = 0
             AuroraState.widgetDragFinished()
-            if (!hoverHandler.hovered)
-                hideTimer.restart()
-        }
-    }
-
-    Timer {
-        id: showTimer
-        interval: AuroraConfig.hoverDelay
-        onTriggered: {
-            if (!root.dragging && AuroraState.widgetMode === AuroraConfig.compact)
-                AuroraState.widgetMode = AuroraConfig.hover
-        }
-    }
-
-    Timer {
-        id: hideTimer
-        interval: AuroraConfig.hideDelay
-        onTriggered: {
-            if (!root.dragging && AuroraState.widgetMode === AuroraConfig.hover)
-                AuroraState.widgetMode = AuroraConfig.compact
         }
     }
 
