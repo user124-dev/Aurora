@@ -1,8 +1,8 @@
 /*
  * AuroraBackground.qml — visual surface behind the widget content.
- * Draws one of two backdrops over the theme surface, depending on
- * AuroraConfig.themeMode: the current MPRIS cover art (default) or the
- * desktop wallpaper (themeWallpaper). No host-specific imports.
+ * Draws one of three backdrops over the theme surface: the current MPRIS
+ * cover art (Aurora), the desktop wallpaper, or a user-selected custom image.
+ * No host-specific imports.
  *
  * The core path intentionally avoids QtQuick.Effects. Both backdrops are
  * therefore plain rectangular image layers under a theme-colored dim
@@ -21,9 +21,12 @@ Rectangle {
 
     readonly property bool wallpaperRequested:
         AuroraConfig.themeMode === AuroraConfig.themeWallpaper && AuroraState.wallpaperAvailable
+    readonly property bool customRequested:
+        AuroraConfig.themeMode === AuroraConfig.themeCustom && AuroraState.customBackgroundAvailable
     readonly property bool wallpaperActive: panel.wallpaperRequested && wallpaper.status === Image.Ready
+    readonly property bool customActive: panel.customRequested && custom.status === Image.Ready
     readonly property bool coverActive:
-        !panel.wallpaperActive && AuroraState.connected && backdrop.status === Image.Ready
+        !panel.wallpaperActive && !panel.customActive && AuroraState.connected && backdrop.status === Image.Ready
 
     radius: AuroraConfig.widgetRadius
     color: AuroraTheme.colorBackground
@@ -65,6 +68,25 @@ Rectangle {
     }
 
     Image {
+        id: custom
+        anchors.fill: parent
+        source: panel.customRequested ? AuroraState.customBackgroundSource : ""
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+        cache: true
+        sourceSize.width: AuroraConfig.wallpaperDecodeWidth
+        opacity: panel.customActive ? AuroraConfig.wallpaperOpacity : 0
+        visible: opacity > 0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: AuroraConfig.smoothAnimation
+                easing.type: AuroraAnimations.standard
+            }
+        }
+    }
+
+    Image {
         id: wallpaper
         anchors.fill: parent
         // Not bound to the source outside wallpaper mode, so the (large)
@@ -92,7 +114,7 @@ Rectangle {
         anchors.fill: parent
         radius: panel.radius
         color: AuroraTheme.colorBackground
-        opacity: panel.wallpaperActive ? AuroraConfig.wallpaperDimOpacity : AuroraConfig.backgroundDimOpacity
+        opacity: (panel.wallpaperActive || panel.customActive) ? AuroraConfig.wallpaperDimOpacity : AuroraConfig.backgroundDimOpacity
 
         Behavior on opacity {
             NumberAnimation {

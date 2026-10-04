@@ -13,7 +13,7 @@ QtObject {
     // Background source. Palette selection (Themes/*.json) is a separate
     // axis: themeMode only decides what is drawn behind the widget.
     readonly property int themeAurora: 0
-    readonly property int themeSystem: 1
+    readonly property int themeCustom: 1
     readonly property int themeWallpaper: 2
     property int themeMode: themeAurora
 

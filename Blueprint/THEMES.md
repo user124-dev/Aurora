@@ -31,24 +31,41 @@ aurora-theme set <theme>
 aurora-theme reset
 aurora-theme background list
 aurora-theme background current
-aurora-theme background set <aurora|system|wallpaper>
+aurora-theme background set <aurora|custom|wallpaper> [image-path]
 ```
 
 `aurora-theme list` descubre automáticamente los archivos `Themes/*.json`, por lo que añadir un nuevo tema no requiere modificar un `switch` de QML.
 
-`theme.json` guarda dos campos independientes: `name` (la paleta) y `background` (el modo de fondo, ver "Modos"). `set` y `reset` cambian solo la paleta y `background set` solo el fondo; ninguno borra el campo del otro. Un `theme.json` antiguo sin el campo `background` sigue siendo válido y equivale a `aurora`.
+`theme.json` guarda la paleta (`name`) y el fondo (`background`). Cuando el fondo es `custom`, también guarda `backgroundPath` con la ruta de la imagen. `set` y `reset` cambian solo la paleta y conservan la configuración del fondo.
 
 ## Modos
 
 `AuroraConfig.themeMode` define qué se dibuja **detrás** del widget. No cambia la paleta: los colores y la tipografía siguen viniendo de `Themes/*.json` en los tres modos.
 
 - `themeAurora` — fondo de la superficie del tema con la portada del álbum encima (comportamiento por defecto).
-- `themeSystem` — reservado para adapters de host. En standalone se comporta como `themeAurora` para evitar dependencias externas.
-- `themeWallpaper` — el fondo de pantalla del escritorio sustituye a la portada. Ver "Fondo Wallpaper".
+- `themeAurora` — usa la portada del reproductor como fondo de música.
+- `themeCustom` — usa una imagen elegida por el usuario mediante su ruta. No modifica el wallpaper del escritorio.
+- `themeWallpaper` — usa el wallpaper actual del escritorio. Ver "Fondo Wallpaper".
 
-`AuroraThemeProvider` traduce el campo `background` de `theme.json` (`aurora`, `system`, `wallpaper`) a `themeMode`. Un valor desconocido cae en `themeAurora`.
+`AuroraThemeProvider` traduce `background` (`aurora`, `custom`, `wallpaper`) a `themeMode`. El valor histórico `system` se migra a `custom` para no reactivar un modo de host que Aurora ya no usa. Un valor desconocido cae en `themeAurora`.
 
 La implementación no importa `qs.modules.common` ni ningún singleton de End-4/ii.
+
+## Fondo Custom
+
+El modo `custom` no reemplaza ni consulta el sistema de wallpaper. Aurora pide una ruta de imagen al usuario:
+
+```text
+aurora-theme background set custom
+```
+
+También puede recibirse directamente como argumento:
+
+```text
+aurora-theme background set custom /ruta/a/imagen.jpg
+```
+
+La ruta se guarda en `theme.json` como `backgroundPath`. Al volver a seleccionar `custom`, se reutiliza la última imagen guardada si no se proporciona otra ruta. Si la imagen deja de existir o no puede decodificarse, `AuroraBackground` conserva el fondo de respaldo sin tocar el wallpaper del escritorio.
 
 ## Fondo Wallpaper
 

@@ -18,7 +18,7 @@ Singleton {
     readonly property string configPath:
         (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/aurora/theme.json"
     readonly property string themeDirectory: Quickshell.shellDir + "/Themes"
-    readonly property bool usingSystemTheme: AuroraConfig.themeMode === AuroraConfig.themeSystem
+    readonly property bool usingCustomBackground: AuroraConfig.themeMode === AuroraConfig.themeCustom
     property string activeTheme: "aurora"
     property bool initialized: false
     property string requestedTheme: "aurora"
@@ -51,6 +51,20 @@ Singleton {
         AuroraTheme.fontSizeHuge = Number(palette.fontSizeHuge || 22)
     }
 
+    function expandHome(path) {
+        if (path.startsWith("~/"))
+            return (Quickshell.env("HOME") || "") + path.slice(1)
+        return path
+    }
+
+    function toUrl(value) {
+        if (!value)
+            return ""
+        if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value))
+            return value
+        return "file://" + encodeURI(value).replace(/#/g, "%23").replace(/\?/g, "%3F")
+    }
+
     function loadTheme(name) {
         const normalized = String(name || "aurora").trim().toLowerCase()
         provider.requestedTheme = normalized || "aurora"
@@ -63,11 +77,24 @@ Singleton {
     function applyStoredBackground() {
         const modes = {
             aurora: AuroraConfig.themeAurora,
-            system: AuroraConfig.themeSystem,
+            custom: AuroraConfig.themeCustom,
+            // Migrate the old key without reviving a host/system background.
+            system: AuroraConfig.themeCustom,
             wallpaper: AuroraConfig.themeWallpaper
         }
-        const mode = modes[String(themeAdapter.background || "aurora").trim().toLowerCase()]
+        const storedMode = String(themeAdapter.background || "aurora").trim().toLowerCase()
+        const mode = modes[storedMode]
         AuroraConfig.themeMode = mode !== undefined ? mode : AuroraConfig.themeAurora
+
+        const customPath = String(themeAdapter.backgroundPath || "").trim()
+        if (customPath.length > 0) {
+            const normalized = provider.expandHome(customPath)
+            AuroraState.customBackgroundSource = provider.toUrl(normalized)
+            AuroraState.customBackgroundAvailable = true
+        } else {
+            AuroraState.customBackgroundSource = ""
+            AuroraState.customBackgroundAvailable = false
+        }
     }
 
     function applyStoredTheme() {
@@ -104,6 +131,7 @@ Singleton {
             id: themeAdapter
             property string name: "aurora"
             property string background: "aurora"
+            property string backgroundPath: ""
         }
     }
 

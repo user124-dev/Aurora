@@ -126,7 +126,7 @@ Usa `Quickshell.Services.Pipewire` para observar salida predeterminada, mute, vo
 
 ## `Providers/AuroraWallpaperProvider.qml`
 
-Escribe `AuroraState.wallpaperAvailable`, `wallpaperSource` (URL) y `wallpaperBackend` (`hyprpaper`, `swww` o `gsettings`) solo mientras `AuroraConfig.themeMode` es `themeWallpaper`. Las tres herramientas son opcionales y no se expone ningún objeto externo a los componentes. Ver `PROVIDERS.md`.
+Escribe `AuroraState.wallpaperAvailable`, `wallpaperSource` (URL) y `wallpaperBackend` (`hyprpaper`, `swww` o `gsettings`) solo mientras `AuroraConfig.themeMode` es `themeWallpaper`. `AuroraThemeProvider` expone por separado `AuroraState.customBackgroundSource` para `themeCustom`. Ver `PROVIDERS.md`.
 
 ## `Providers/AuroraEqualizerProvider.qml`
 

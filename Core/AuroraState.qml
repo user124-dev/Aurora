@@ -84,6 +84,10 @@ QtObject {
     property bool wallpaperAvailable: false
     property url wallpaperSource: ""
     property string wallpaperBackend: ""
+    // User-selected custom background. This is deliberately separate from
+    // wallpaper detection: custom mode never modifies the desktop wallpaper.
+    property bool customBackgroundAvailable: false
+    property url customBackgroundSource: ""
 
     // Plugins
     property var plugins: ({})

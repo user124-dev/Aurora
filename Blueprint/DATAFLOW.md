@@ -33,9 +33,9 @@ flowchart TD
 
 **Audio:** `AuroraAudioProvider` ejecuta Cava cuando está disponible, procesa su salida y escribe `AuroraState.spectrumLevels`. Si Cava no está disponible o no hay muestras válidas, el estado puede quedar sin datos de espectro y `AuroraSpectrum` utiliza su fallback visual.
 
-**Tema:** el runtime actual es standalone. `AuroraThemeProvider` carga la paleta elegida desde `Themes/*.json` y escribe `AuroraTheme`. Del mismo `theme.json` lee el modo de fondo (`background`) y lo traduce a `AuroraConfig.themeMode`. `themeSystem` existe como punto de extensión reservado; actualmente no conecta con un singleton de apariencia de un host.
+**Tema:** el runtime actual es standalone. `AuroraThemeProvider` carga la paleta elegida desde `Themes/*.json` y escribe `AuroraTheme`. Del mismo `theme.json` lee el modo de fondo (`background`) y lo traduce a `AuroraConfig.themeMode`. `themeCustom` representa una imagen elegida por el usuario; no consulta ni modifica la apariencia del host.
 
-**Wallpaper:** solo con `themeWallpaper` activo, `AuroraWallpaperProvider` consulta las herramientas que exponen el fondo de pantalla (hyprpaper, swww, gsettings) y escribe `AuroraState.wallpaperSource`. `AuroraBackground` lo dibuja, o usa su superficie por defecto si no hay respuesta.
+**Fondo:** `AuroraBackground` selecciona entre portada (`themeAurora`), imagen personalizada (`themeCustom`) y wallpaper (`themeWallpaper`). El modo wallpaper usa `AuroraWallpaperProvider`, mientras que el modo custom recibe su ruta desde `AuroraThemeProvider`/`theme.json`; ninguno modifica el sistema.
 
 **Configuración:** `AuroraConfig` contiene configuración interna de comportamiento y diseño. Los componentes la leen directamente; no existe un Provider intermedio para configuración estática.
 
