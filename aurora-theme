@@ -2,7 +2,7 @@
 # Aurora theme selector. Theme definitions live in the repository Themes/ tree;
 # the selection is persisted outside the runtime tree in one file with two
 # independent fields: "name" (the palette) and "background" (what is drawn
-# behind the widget: aurora, system or wallpaper).
+# behind the widget: aurora, custom or wallpaper).
 
 set -u
 
@@ -24,12 +24,13 @@ Usage:
   aurora-theme reset
   aurora-theme background list
   aurora-theme background current
-  aurora-theme background set <aurora|system|wallpaper>
+  aurora-theme background set <aurora|wallpaper|custom> [path]
 
 Theme definitions are read from Aurora/Themes/*.json.
 'set' and 'reset' change the palette only; the background mode is kept.
 The wallpaper background needs one of: hyprpaper (hyprctl), swww, or GNOME
 (gsettings). Without one, Aurora falls back to its default background.
+The custom background uses an image path stored in theme.json.
 EOF
 }
 
@@ -51,7 +52,7 @@ is_valid() {
     [[ -f "$THEMES_DIR/$1.json" ]]
 }
 
-BACKGROUND_MODES=(aurora system wallpaper)
+BACKGROUND_MODES=(aurora wallpaper custom)
 
 is_valid_background() {
     local mode
@@ -71,11 +72,37 @@ read_field() {
     printf '%s\n' "${value:-$default}"
 }
 
-# write_selection <name> <background> - always writes both fields, so
-# changing one axis can never drop the other.
+# write_selection <name> <background> [backgroundPath] - always writes both
+# axes and keeps a path only for the custom background.
 write_selection() {
+    local name="$1" background="$2" background_path="${3:-}"
     mkdir -p "$THEME_DIR"
-    printf '{"name":"%s","background":"%s"}\n' "$1" "$2" > "$THEME_FILE"
+    if [[ "$background" == "custom" ]]; then
+        printf '{"name":"%s","background":"%s","backgroundPath":"%s"}\n' \
+            "$name" "$background" "$background_path" > "$THEME_FILE"
+    else
+        printf '{"name":"%s","background":"%s","backgroundPath":""}\n' \
+            "$name" "$background" > "$THEME_FILE"
+    fi
+}
+
+choose_custom_path() {
+    local path="${1:-}"
+    if [[ -z "$path" ]]; then
+        read -r -p 'Ruta de la imagen personalizada: ' path
+    fi
+    if [[ -z "$path" ]]; then
+        printf 'Debes indicar la ruta de una imagen.\n' >&2
+        exit 2
+    fi
+    if [[ "$path" == ~/* ]]; then
+        path="${HOME}${path#~}"
+    fi
+    if [[ ! -f "$path" ]]; then
+        printf 'La imagen no existe o no es un archivo: %s\n' "$path" >&2
+        exit 2
+    fi
+    printf '%s\n' "$path"
 }
 
 case "${1:-}" in
@@ -96,11 +123,11 @@ case "${1:-}" in
             printf '\n' >&2
             exit 2
         fi
-        write_selection "$2" "$(read_field background aurora)"
+        write_selection "$2" "$(read_field background aurora)" "$(read_field backgroundPath '')"
         printf 'Aurora theme: %s\n' "$2"
         ;;
     reset)
-        write_selection aurora "$(read_field background aurora)"
+        write_selection aurora "$(read_field background aurora)" "$(read_field backgroundPath '')"
         printf 'Aurora theme: aurora\n'
         ;;
     background)
@@ -112,6 +139,17 @@ case "${1:-}" in
                 read_field background aurora
                 ;;
             set)
+                if [[ "${3:-}" == "system" ]]; then
+                    printf 'El modo "system" fue renombrado a "custom".\n' >&2
+                    exit 2
+                fi
+                if [[ "${3:-}" == "custom" ]]; then
+                    custom_path="$(choose_custom_path "${4:-}")"
+                    write_selection "$(read_field name aurora)" custom "$custom_path"
+                    printf 'Aurora background: custom\n'
+                    printf 'Aurora background path: %s\n' "$custom_path"
+                    exit 0
+                fi
                 if [[ -z "${3:-}" ]] || ! is_valid_background "$3"; then
                     printf 'Fondo inválido. Usa uno de: %s\n' "${BACKGROUND_MODES[*]}" >&2
                     exit 2
@@ -120,7 +158,7 @@ case "${1:-}" in
                 printf 'Aurora background: %s\n' "$3"
                 ;;
             *)
-                printf 'Uso: aurora-theme background <list|current|set <modo>>\n' >&2
+                printf 'Uso: aurora-theme background <list|current|set <modo> [path]>\n' >&2
                 exit 2
                 ;;
         esac
