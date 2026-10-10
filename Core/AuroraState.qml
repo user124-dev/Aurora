@@ -58,6 +58,7 @@ QtObject {
     property string currentPreset: ""
     property bool effectsManaged: false
     property bool effectsWarning: false
+    property bool effectsBypassed: false
     property string effectsBackend: ""
 
     // Session queue / history. Aurora owns this session layer; it never
@@ -108,6 +109,7 @@ QtObject {
     signal cycleRepeat()
     signal selectPlayer(string identity)
     signal setPreset(string name)
+    signal setEffectsBypass(bool bypassed)
 
     // Free window positioning. AuroraPlayer reports how far the pointer is
     // from where it grabbed the widget; whoever owns the window (shell.qml
