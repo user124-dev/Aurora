@@ -1,6 +1,6 @@
 /*
- * AuroraEqualizerSwitcher.qml — EasyEffects status and preset controls.
- * Aurora never assumes EasyEffects is present or active.
+ * AuroraEqualizerSwitcher.qml — one EasyEffects button with a unified menu.
+ * Presets and the normal-sound bypass option share identical row dimensions.
  */
 import QtQuick
 import "../Core"
@@ -9,13 +9,14 @@ Item {
     id: root
 
     property bool hovered: false
-
-    // Same open/close treatment as AuroraPlayerSwitcher.
+    property bool menuOpen: false
     readonly property bool shown: AuroraState.equalizerAvailable
+
+    implicitWidth: 260
+    implicitHeight: root.shown ? content.implicitHeight : 0
     opacity: root.shown ? 1 : 0
-    visible: opacity > 0
-    clip: true
-    implicitHeight: root.shown ? AuroraConfig.switcherChipHeight : 0
+    visible: root.opacity > 0
+    clip: false
 
     Behavior on opacity {
         NumberAnimation {
@@ -36,56 +37,113 @@ Item {
         onHoveredChanged: root.hovered = switcherHover.hovered
     }
 
-    Row {
+    Column {
+        id: content
         anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: AuroraConfig.switcherChipSpacing
+        anchors.right: parent.right
+        anchors.top: parent.top
+        spacing: 4
 
         Rectangle {
-            implicitWidth: statusLabel.implicitWidth + AuroraConfig.switcherChipPadding * 2
-            implicitHeight: AuroraConfig.switcherChipHeight
+            id: mainButton
+            width: parent.width
+            height: AuroraConfig.switcherChipHeight
             radius: height / 2
-            color: AuroraState.effectsManaged ? AuroraTheme.colorPrimary : AuroraTheme.colorContainer
+            color: root.menuOpen || AuroraState.effectsManaged || AuroraState.effectsBypassed
+                ? AuroraTheme.colorPrimary
+                : AuroraTheme.colorContainer
+
+            Behavior on color {
+                ColorAnimation { duration: AuroraConfig.fastAnimation }
+            }
 
             Text {
-                id: statusLabel
-                anchors.centerIn: parent
-                text: AuroraState.effectsManaged
-                    ? "EasyEffects: " + AuroraState.currentPreset
-                    : "EasyEffects"
+                anchors.fill: parent
+                anchors.leftMargin: AuroraConfig.switcherChipPadding
+                anchors.rightMargin: AuroraConfig.switcherChipPadding
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignHCenter
+                text: AuroraState.effectsBypassed
+                    ? "EasyEffects · Sonido normal"
+                    : (AuroraState.currentPreset.length > 0
+                        ? "EasyEffects · " + AuroraState.currentPreset
+                        : "EasyEffects")
                 font.pixelSize: AuroraTheme.fontSizeSmall
                 font.family: AuroraTheme.fontFamily
-                color: AuroraState.effectsManaged
+                color: root.menuOpen || AuroraState.effectsManaged || AuroraState.effectsBypassed
                     ? AuroraTheme.colorOnPrimary
                     : AuroraTheme.colorOnBackground
                 elide: Text.ElideRight
             }
+
+            Text {
+                anchors.right: parent.right
+                anchors.rightMargin: 9
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.menuOpen ? "▴" : "▾"
+                font.pixelSize: AuroraTheme.fontSizeSmall
+                font.family: AuroraTheme.fontFamily
+                color: root.menuOpen || AuroraState.effectsManaged || AuroraState.effectsBypassed
+                    ? AuroraTheme.colorOnPrimary
+                    : AuroraTheme.colorOnBackground
+            }
+
+            TapHandler {
+                onTapped: root.menuOpen = !root.menuOpen
+            }
         }
 
-        Repeater {
-            model: AuroraState.equalizerPresets
+        Column {
+            id: menu
+            width: parent.width
+            spacing: 4
+            visible: root.menuOpen
+            enabled: visible
 
-            Rectangle {
-                id: chip
-                readonly property bool selected: modelData === AuroraState.currentPreset
-                implicitWidth: label.implicitWidth + AuroraConfig.switcherChipPadding * 2
-                implicitHeight: AuroraConfig.switcherChipHeight
-                radius: height / 2
-                color: chip.selected ? AuroraTheme.colorPrimary : AuroraTheme.colorContainer
+            Repeater {
+                model: [{ label: "Sonido normal", bypass: true }]
+                    .concat(AuroraState.equalizerPresets.map(name => ({ label: name, bypass: false })))
 
-                Behavior on color {
-                    ColorAnimation { duration: AuroraConfig.fastAnimation }
-                }
+                Rectangle {
+                    id: option
+                    required property var modelData
+                    width: menu.width
+                    height: AuroraConfig.switcherChipHeight
+                    radius: height / 2
+                    color: modelData.bypass
+                        ? (AuroraState.effectsBypassed ? AuroraTheme.colorPrimary : AuroraTheme.colorContainer)
+                        : ((!AuroraState.effectsBypassed && modelData.label === AuroraState.currentPreset)
+                            ? AuroraTheme.colorPrimary : AuroraTheme.colorContainer)
 
-                TapHandler { onTapped: AuroraState.setPreset(modelData) }
+                    Behavior on color {
+                        ColorAnimation { duration: AuroraConfig.fastAnimation }
+                    }
 
-                Text {
-                    id: label
-                    anchors.centerIn: parent
-                    text: modelData
-                    font.pixelSize: AuroraTheme.fontSizeSmall
-                    font.family: AuroraTheme.fontFamily
-                    color: chip.selected ? AuroraTheme.colorOnPrimary : AuroraTheme.colorOnBackground
+                    Text {
+                        anchors.fill: parent
+                        anchors.leftMargin: AuroraConfig.switcherChipPadding
+                        anchors.rightMargin: AuroraConfig.switcherChipPadding
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignHCenter
+                        text: option.modelData.label
+                        font.pixelSize: AuroraTheme.fontSizeSmall
+                        font.family: AuroraTheme.fontFamily
+                        color: option.color === AuroraTheme.colorPrimary
+                            ? AuroraTheme.colorOnPrimary
+                            : AuroraTheme.colorOnBackground
+                        elide: Text.ElideRight
+                    }
+
+                    TapHandler {
+                        onTapped: {
+                            if (option.modelData.bypass) {
+                                AuroraState.setEffectsBypass(true)
+                            } else {
+                                AuroraState.setPreset(option.modelData.label)
+                            }
+                            root.menuOpen = false
+                        }
+                    }
                 }
             }
         }

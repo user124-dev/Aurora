@@ -1,17 +1,7 @@
 /*
- * ╔══════════════════════════════════════════════════════════════╗
- * ║                      Aurora Player                          ║
- * ╚══════════════════════════════════════════════════════════════╝
- *
- * File        : AuroraEqualizerProvider.qml
- * Module      : Providers
- * Component   : Equalizer Provider (Level A)
- * Version     : 0.1.0-dev
- *
- * Description:
- * Level A equalizer support: preset discovery and loading via the
- * EasyEffects CLI. EasyEffects is optional and Aurora does not claim
- * ownership of its global effects graph yet.
+ * AuroraEqualizerProvider.qml — EasyEffects preset and bypass control.
+ * EasyEffects remains optional; Aurora only changes its global bypass when
+ * the user explicitly selects "Sonido normal" or loads a preset.
  */
 
 pragma Singleton
@@ -35,6 +25,7 @@ Singleton {
     }
 
     property bool initialized: false
+    property bool requestedBypass: false
 
     function initialize() {
         if (provider.initialized)
@@ -55,16 +46,25 @@ Singleton {
     }
 
     function loadPreset(name) {
-        if (!AuroraState.equalizerAvailable || !name)
+        if (!AuroraState.equalizerAvailable || !name || loader.running)
             return
 
         loader.presetName = name
         loader.running = true
     }
 
-    // Detection only proves that EasyEffects is installed. It does not mean
-    // Aurora is currently changing system audio. The warning is enabled only
-    // after Aurora actually requests a preset load.
+    function setBypass(bypassed) {
+        if (!AuroraState.equalizerAvailable)
+            return
+
+        provider.requestedBypass = Boolean(bypassed)
+        if (bypasser.running)
+            return
+
+        bypasser.targetBypassed = provider.requestedBypass
+        bypasser.running = true
+    }
+
     Process {
         id: detection
         command: ["bash", "-c", "command -v easyeffects"]
@@ -81,6 +81,7 @@ Singleton {
                 AuroraState.effectsBackend = ""
                 AuroraState.effectsManaged = false
                 AuroraState.effectsWarning = false
+                AuroraState.effectsBypassed = false
                 console.log("[Aurora] EasyEffects not found - equalizer unavailable")
             }
         }
@@ -93,7 +94,7 @@ Singleton {
             "-maxdepth", String(AuroraConfig.equalizerPresetScanDepth),
             "-type", "f",
             "-name", "*.json",
-            "-printf", "%f\n"
+            "-printf", "%f\\n"
         ]
 
         stdout: SplitParser {
@@ -122,12 +123,15 @@ Singleton {
         id: loader
         property string presetName: ""
         command: ["easyeffects", "-l", loader.presetName]
+
         onExited: (exitCode, exitStatus) => {
             if (Number(exitCode) === 0) {
                 AuroraState.currentPreset = loader.presetName
                 AuroraState.effectsManaged = true
                 AuroraState.effectsWarning = true
                 console.log("[Aurora] EasyEffects preset loaded by Aurora:", loader.presetName)
+                // A selected preset should be audible, so turn bypass off.
+                provider.setBypass(false)
             } else {
                 console.log("[Aurora] Failed to load EasyEffects preset:",
                     loader.presetName, "(exit code", exitCode + ")")
@@ -135,8 +139,34 @@ Singleton {
         }
     }
 
+    Process {
+        id: bypasser
+        property bool targetBypassed: false
+        command: ["easyeffects", "-b", bypasser.targetBypassed ? "1" : "2"]
+
+        onExited: (exitCode, exitStatus) => {
+            if (Number(exitCode) === 0) {
+                AuroraState.effectsBypassed = bypasser.targetBypassed
+                AuroraState.effectsManaged = !bypasser.targetBypassed
+                AuroraState.effectsWarning = !bypasser.targetBypassed
+                console.log("[Aurora] EasyEffects bypass:",
+                    bypasser.targetBypassed ? "enabled (normal sound)" : "disabled (effects active)")
+            } else {
+                console.log("[Aurora] Failed to change EasyEffects bypass (exit code", exitCode + ")")
+            }
+
+            // If the user changed the selection while the CLI was running,
+            // apply the latest requested state after the current command ends.
+            if (provider.requestedBypass !== bypasser.targetBypassed) {
+                bypasser.targetBypassed = provider.requestedBypass
+                bypasser.running = true
+            }
+        }
+    }
+
     Connections {
         target: AuroraState
         function onSetPreset(name) { provider.loadPreset(name) }
+        function onSetEffectsBypass(bypassed) { provider.setBypass(bypassed) }
     }
 }
