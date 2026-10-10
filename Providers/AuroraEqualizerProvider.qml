@@ -25,6 +25,7 @@ Singleton {
     }
 
     property bool initialized: false
+    property bool requestedBypass: false
 
     function initialize() {
         if (provider.initialized)
@@ -53,10 +54,14 @@ Singleton {
     }
 
     function setBypass(bypassed) {
-        if (!AuroraState.equalizerAvailable || bypasser.running)
+        if (!AuroraState.equalizerAvailable)
             return
 
-        bypasser.targetBypassed = Boolean(bypassed)
+        provider.requestedBypass = Boolean(bypassed)
+        if (bypasser.running)
+            return
+
+        bypasser.targetBypassed = provider.requestedBypass
         bypasser.running = true
     }
 
@@ -148,6 +153,13 @@ Singleton {
                     bypasser.targetBypassed ? "enabled (normal sound)" : "disabled (effects active)")
             } else {
                 console.log("[Aurora] Failed to change EasyEffects bypass (exit code", exitCode + ")")
+            }
+
+            // If the user changed the selection while the CLI was running,
+            // apply the latest requested state after the current command ends.
+            if (provider.requestedBypass !== bypasser.targetBypassed) {
+                bypasser.targetBypassed = provider.requestedBypass
+                bypasser.running = true
             }
         }
     }
